@@ -3,21 +3,19 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
+    UserModule,
     // This configures the database connection for your entire app.
     TypeOrmModule.forRoot({
       type: 'postgres',
-      // This reads the connection string from the environment variable
-      // we set in docker-compose.yml.
+      // Reads the connection string set in docker comp
       url: process.env.DATABASE_URL,
-      // This will automatically load any entity files (like User, Wallet)
-      // you create later.
+      // Load any entity files.
       autoLoadEntities: true,
-      // This is a development-only feature that automatically creates
-      // your database tables based on your entities. Never use this
-      // in production!
+      // auto create tables depending on entities
       synchronize: true,
     }),
   ],
