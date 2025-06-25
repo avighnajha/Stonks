@@ -1,14 +1,13 @@
-// services/user-service/src/app.module.ts
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
+import { LoggerMiddleware } from './logger.middleware'; // <-- IMPORT THE LOGGER
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
   imports: [
     UserModule,
-    // This configures the database connection for your entire app.
     TypeOrmModule.forRoot({
       type: 'postgres',
       // Reads the connection string set in docker comp
@@ -16,10 +15,15 @@ import { UserModule } from './user/user.module';
       // Load any entity files.
       autoLoadEntities: true,
       // auto create tables depending on entities
-      synchronize: true,
-    }),
+      synchronize: true,})
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+// We implement the NestModule interface to gain access to the configure method.
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Applied loggerMiddleware to every route in the application.
+    consumer.apply(LoggerMiddleware).forRoutes('*');
+  }
+}
