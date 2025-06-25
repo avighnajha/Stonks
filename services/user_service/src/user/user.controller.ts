@@ -1,6 +1,7 @@
-import {Controller, Post, Body, Get, ValidationPipe} from '@nestjs/common'
+import {Controller, Post, Body, Get, ValidationPipe, HttpCode, HttpStatus} from '@nestjs/common'
 import {UserService} from './user.service';
 import { CreateUserDto } from './dto/create_user.dto';
+import { LoginUserDTO } from './dto/login_user.dto';
 
 @Controller('auth')
 export class UserController {
@@ -8,8 +9,15 @@ export class UserController {
 
     @Post('register')
     register(@Body(ValidationPipe) createUserDto: CreateUserDto){
-        console.log("In register")
+        console.log("Regitering User")
         return this.userService.create(createUserDto)
+    }
+
+    @Get('login')
+    @HttpCode(HttpStatus.OK)
+    login(@Body(ValidationPipe) loginUserDto: LoginUserDTO){
+        console.log("User logging in")
+        return this.userService.login(loginUserDto)
     }
 
 }
