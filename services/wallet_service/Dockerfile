@@ -13,4 +13,4 @@ COPY package*.json ./
 RUN npm install
 
 # This just tells Docker what port the container will eventually listen on.
-EXPOSE 3001
+EXPOSE 3002

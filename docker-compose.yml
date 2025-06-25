@@ -1,7 +1,7 @@
-# docker-compose.yml (Final Development Fix)
-version: '3.8'
+
 
 services:
+  # The single PostgreSQL database for the entire application
   postgres_db:
     image: postgres:14-alpine
     container_name: postgres_db
@@ -14,18 +14,31 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # The existing user service
   user_service:
     build:
       context: ./services/user_service
-    # This command will run inside the container which now has all node_modules
     command: npm run start:dev
     ports:
       - "3001:3001"
     volumes:
-      # This is now the only volume. It mounts your live source code.
       - ${PWD}/services/user_service:/usr/src/app
     environment:
       - PORT=3001
+      - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
+    depends_on:
+      - postgres_db
+
+  wallet_service:
+    build:
+      context: ./services/wallet_service
+    command: npm run start:dev
+    ports:
+      - "3002:3002"
+    volumes:
+      - ${PWD}/services/wallet_service:/usr/src/app
+    environment:
+      - PORT=3002
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
     depends_on:
       - postgres_db
