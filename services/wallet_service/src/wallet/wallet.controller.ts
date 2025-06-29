@@ -1,8 +1,13 @@
-import {Controller, Get, Post, Request, UseGuards, ValidationPipe} from '@nestjs/common';
+import {Body, Controller, Get, Post, Request, UseGuards, ValidationPipe} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { WalletService } from './wallet.service';
 import { Repository } from 'typeorm';
 import { Wallet } from './entities/wallet.entity';
+
+
+class CreateWalletDto{
+    userId: string;
+}
 
 @Controller('wallet')
 export class WalletController {

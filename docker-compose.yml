@@ -42,6 +42,19 @@ services:
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
     depends_on:
       - postgres_db
+  marketplace_service:
+    build:
+      context: ./services/marketplace_service
+    command: npm run start:dev
+    ports:
+      - "3003:3003"
+    volumes:
+      - ${PWD}/services/marketplace_service:/usr/src/app
+    environment:
+      - PORT=3002
+      - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
+    depends_on:
+      - postgres_db
 
 volumes:
   postgres_data:
