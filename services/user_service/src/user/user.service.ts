@@ -67,7 +67,8 @@ export class UserService {
         if (!passMatch){
             throw new UnauthorizedException("Invalid login details");
         }
-        const payload = {email: foundUser.email, sub: foundUser.id}
+        //jwt payload checked when logging in
+        const payload = { email: foundUser.email, sub: foundUser.id, role: foundUser.role }
         return {
             access_token: this.jwtService.sign(payload)
         };

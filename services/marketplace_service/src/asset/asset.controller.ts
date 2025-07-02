@@ -3,6 +3,9 @@ import { AssetDto } from "./entities/asset.dto";
 import { AuthGuard } from "@nestjs/passport";
 import { resolveSoa } from "dns";
 import { UserRole } from "src/auth/user-role.enum";
+import { RolesGuard } from "src/auth/roles.guard";
+import { Roles } from "src/auth/roles.decorator";
+import { AssetService } from "./asset.service";
 
 @Controller('assets')
 export class AssetController{
