@@ -14,7 +14,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  # The existing user service
   user_service:
     build:
       context: ./services/user_service
@@ -52,6 +51,20 @@ services:
       - ${PWD}/services/marketplace_service:/usr/src/app
     environment:
       - PORT=3002
+      - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
+    depends_on:
+      - postgres_db
+
+  trading_service:
+    build:
+      context: ./services/trading_service
+    command: npm run start:devs
+    ports:
+      - "3004:3004"
+    volumes:
+      - ${PWD}/services/trading_service:/usr/src/app
+    environment:
+      - PORT=3004
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
     depends_on:
       - postgres_db
