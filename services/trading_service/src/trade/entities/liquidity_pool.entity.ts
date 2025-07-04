@@ -13,4 +13,8 @@ export class Liquidity_pool{
 
     @Column({type:'decimal', default: 1000000})
     currency_balance:number;
+
+    get k(): number {
+    return Number(this.currency_balance) * Number(this.asset_balance);
+  }
 }

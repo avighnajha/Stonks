@@ -2,7 +2,6 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { And, Repository } from 'typeorm';
 import { Wallet } from './entities/wallet.entity';
-import { UserInfo } from 'os';
 
 @Injectable()
 export class WalletService{
