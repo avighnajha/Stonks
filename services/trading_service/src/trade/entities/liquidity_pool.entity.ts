@@ -1,7 +1,7 @@
 import { Column, Decimal128, Entity, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity('liquidity_pool')
-export class Liquidity_pool{
+export class LiquidityPool{
     @PrimaryGeneratedColumn('uuid')
     id:string
 

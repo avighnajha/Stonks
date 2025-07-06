@@ -1,14 +1,14 @@
 import { HttpServer, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { Liquidity_pool } from "./entities/liquidity_pool.entity";
+import { LiquidityPool } from "./entities/liquidity_pool.entity";
 import { firstValueFrom } from "rxjs";
 import { HttpService } from "@nestjs/axios";
 
 @Injectable()
-export class trade_service {
+export class TradeService {
     constructor(
-        @InjectRepository(Liquidity_pool)
+        @InjectRepository(LiquidityPool)
         private readonly liqpoolRepository: Repository<Liquidity_pool>,
         private readonly httpService: HttpService,
     ){}
@@ -39,8 +39,27 @@ export class trade_service {
             throw new error;
         }
 
-        return {message: 'Trade executed succesfully!'};
+        return {message: `Trade executed succesfully! ${stockAmount} stocks of Stock ${assetId} bought`};
     }
 
-    executeSell(){}
+    async executeSell(assetId: string, userId: string, stockAmount: number){
+        const pool = await this.liqpoolRepository.findOne({where:{id:assetId}})
+
+        const walletServiceUrl = 'http://wallet_service:3002/wallet/credit'
+        if(!pool){
+            throw new NotFoundException('Wallet not found')
+        }
+        const curCost = ( pool.currency_balance - pool.k/(pool.asset_balance+stockAmount))
+        pool.asset_balance+=stockAmount;
+        pool.currency_balance-=curCost;
+        
+        try{
+            await firstValueFrom(
+                this.httpService.post(walletServiceUrl, {userId: userId, amount: curCost}))
+        } catch (error){
+            throw new error;
+        }
+
+        return {message: `Trade executed succesfully! ${stockAmount} stocks of Stock ${assetId} sold.`};
+    }
 }

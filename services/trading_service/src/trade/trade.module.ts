@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AssetController } from './trade.controller';
-import { AssetService } from './trade.service';
-import { Asset } from './entities/liquidity_pool.entity'; // <-- Import the entity
+import { TradeController } from './trade.controller';
+import { TradeService } from './trade.service';
+import { LiquidityPool } from './entities/liquidity_pool.entity'; // <-- Import the entity
 
 @Module({
     imports: [
-    TypeOrmModule.forFeature([Asset]) // <-- Make the Asset repository available
+    TypeOrmModule.forFeature([LiquidityPool])
     ],
-    controllers: [AssetController],
-    providers: [AssetService],
+    controllers: [TradeController],
+    providers: [TradeService],
 })
 export class AssetModule {}
