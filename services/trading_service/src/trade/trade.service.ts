@@ -9,7 +9,7 @@ import { HttpService } from "@nestjs/axios";
 export class TradeService {
     constructor(
         @InjectRepository(LiquidityPool)
-        private readonly liqpoolRepository: Repository<Liquidity_pool>,
+        private readonly liqpoolRepository: Repository<LiquidityPool>,
         private readonly httpService: HttpService,
     ){}
     async getQuote(assetId: string): Promise<number>{
