@@ -1,10 +1,12 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Request, UseGuards, ValidationPipe } from "@nestjs/common";
 import { TradeService } from "./trade.service";
 import { AuthGuard } from "@nestjs/passport";
+import { IsNumber, IsPositive } from "class-validator";
 
 
-class TradeDto {
-    userId:string
+export class TradeDto {
+    @IsNumber()
+    @IsPositive()
     assetAmount: number
 }
 
@@ -12,9 +14,9 @@ class TradeDto {
 export class TradeController{
     constructor(private readonly tradeService: TradeService){}
 
-    @Get(':assetId')
-    async getQuote(@Param('assetId', ParseUUIDPipe) id: string){
-        return this.tradeService.getQuote(id);
+    @Get('quote/:assetId')
+    async getQuote(@Param('assetId', ParseUUIDPipe) assetId: string){
+        return this.tradeService.getQuote(assetId);
     }
 
     @Post('buy/:assetId')
@@ -23,7 +25,8 @@ export class TradeController{
         @Body(ValidationPipe) tradeDto: TradeDto,
         @Param('assetId', ParseUUIDPipe) assetId: string
     ){
-        const {userId, assetAmount} = tradeDto;
+        const userId = req.user.userId;
+        const {assetAmount} = tradeDto;
         return this.tradeService.executeBuy(assetId, userId, assetAmount)
     }
 
@@ -33,9 +36,8 @@ export class TradeController{
         @Body(ValidationPipe) tradeDto:TradeDto,
         @Param('assetId', ParseUUIDPipe) assetId:string
     ){
-        const {userId, assetAmount} = tradeDto;
+        const userId = req.user.userId;
+        const { assetAmount} = tradeDto;
         return this.tradeService.executeSell(assetId, userId, assetAmount)
     }
-
-    
 }

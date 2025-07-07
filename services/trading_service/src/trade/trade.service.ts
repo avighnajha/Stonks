@@ -1,4 +1,4 @@
-import { HttpServer, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, HttpServer, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { LiquidityPool } from "./entities/liquidity_pool.entity";
@@ -12,52 +12,66 @@ export class TradeService {
         private readonly liqpoolRepository: Repository<LiquidityPool>,
         private readonly httpService: HttpService,
     ){}
-    async getQuote(assetId: string): Promise<number>{
-        const pool = await this.liqpoolRepository.findOne({where:{id: assetId}});
-        if (!pool){
-            throw new NotFoundException('Liquidity pool not found.')
+
+    private async findPool(assetId: string){
+        const pool = await this.liqpoolRepository.findOne({where: {asset_id: assetId}})
+        if(!pool){
+            throw new NotFoundException('Liquidity pool not found')
         }
-        return pool.currency_balance/pool.asset_balance;
+        return pool;
     }
 
-    async executeBuy(assetId: string, userId: string, stockAmount: number){
-        const pool = await this.liqpoolRepository.findOne({where:{id: assetId}});
+    async getQuote(assetId: string): Promise<{price: number}>{
+        const pool = await this.findPool(assetId);
+        const price = pool.currency_balance/pool.asset_balance;
+        return {price};
+    }
+
+    async executeBuy(assetId: string, userId: string, assetAmount: number){
+        const pool = await this.findPool(assetId);
         
         const walletServiceUrl = 'http://wallet_service:3002/wallet/debit';
-        if (!pool){
-            throw new NotFoundException('Liquidity pool not found.')
-        }
         
-        //Current cost to buy stockAmount number of stocks
-        const curCost = (pool.k/(pool.asset_balance-stockAmount) - pool.currency_balance)
-        pool.asset_balance -= stockAmount;
-        pool.currency_balance+=curCost;
-        try{
-            await firstValueFrom(
-                this.httpService.post(walletServiceUrl, {userId: userId, amount: curCost}))
-        } catch (error){
-            throw new error;
+        if (pool.asset_balance<=assetAmount){
+            throw new BadRequestException('Not enough liquidity');
         }
 
-        return {message: `Trade executed succesfully! ${stockAmount} stocks of Stock ${assetId} bought`};
+        //Current cost to buy stockAmount number of stocks
+        const curCost = (pool.k/(pool.asset_balance-assetAmount) - pool.currency_balance)
+        try{
+            pool.asset_balance -= assetAmount;
+            pool.currency_balance+=curCost;
+            await this.liqpoolRepository.save(pool)
+            await firstValueFrom(
+                this.httpService.post(walletServiceUrl, {userId: userId, amount: curCost}))
+            } catch (error){
+                throw error;
+            }
+
+        return {message: `Trade executed succesfully! ${assetAmount} stocks of Stock ${assetId} bought`};
     }
 
     async executeSell(assetId: string, userId: string, stockAmount: number){
         const pool = await this.liqpoolRepository.findOne({where:{id:assetId}})
 
+        
         const walletServiceUrl = 'http://wallet_service:3002/wallet/credit'
+
         if(!pool){
             throw new NotFoundException('Wallet not found')
         }
         const curCost = ( pool.currency_balance - pool.k/(pool.asset_balance+stockAmount))
-        pool.asset_balance+=stockAmount;
-        pool.currency_balance-=curCost;
         
+        //TODO: Conenct to potfolio servie to check if user even has this many stocks to sell.
+
         try{
+            pool.asset_balance+=stockAmount;
+            pool.currency_balance-=curCost;
+            this.liqpoolRepository.save(pool);
             await firstValueFrom(
                 this.httpService.post(walletServiceUrl, {userId: userId, amount: curCost}))
         } catch (error){
-            throw new error;
+            throw error;
         }
 
         return {message: `Trade executed succesfully! ${stockAmount} stocks of Stock ${assetId} sold.`};
