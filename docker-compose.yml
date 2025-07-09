@@ -50,7 +50,7 @@ services:
     volumes:
       - ${PWD}/services/marketplace_service:/usr/src/app
     environment:
-      - PORT=3002
+      - PORT=3003
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
     depends_on:
       - postgres_db
@@ -58,7 +58,7 @@ services:
   trading_service:
     build:
       context: ./services/trading_service
-    command: npm run start:devs
+    command: npm run start:dev
     ports:
       - "3004:3004"
     volumes:
