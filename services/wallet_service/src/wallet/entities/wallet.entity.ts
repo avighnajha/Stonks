@@ -1,4 +1,4 @@
-import {Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn} from 'typeorm'
+import {Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToOne, JoinColumn} from 'typeorm'
 import { UUID } from 'typeorm/driver/mongodb/bson.typings';
 
 @Entity("wallets")
@@ -6,7 +6,7 @@ export class Wallet{
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
-    @Column({type: 'uuid'})
+    @Column({type:'uuid'})
     user_id: string;
 
     @Column({type: 'decimal', precision: 12, scale: 2, default: 10000})

@@ -1,4 +1,4 @@
-import {Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn} from 'typeorm'
+import {Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToOne, JoinColumn} from 'typeorm'
 import { UserController } from '../user.controller';
 import { UserRole } from '../enum/user-role.enum';
 
