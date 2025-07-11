@@ -74,6 +74,7 @@ export class UserService {
         if (!passMatch){
             throw new UnauthorizedException("Invalid login details");
         }
+        console.log("Logging in user with role", foundUser.role)
         //jwt payload checked when logging in
         const payload = { email: foundUser.email, sub: foundUser.id, role: foundUser.role }
         return {

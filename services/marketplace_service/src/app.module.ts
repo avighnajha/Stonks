@@ -4,9 +4,11 @@ import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './auth/jwt.strategy';
+import { AssetModule } from './asset/asset.module';
 
 @Module({
   imports: [
+    AssetModule,
     PassportModule.register({defaultStrategy: 'jwt'}),
     TypeOrmModule.forRoot({
       type: 'postgres',

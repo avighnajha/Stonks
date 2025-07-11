@@ -13,14 +13,16 @@ export class Asset{
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
-    @Column({type:'string', unique:true})
+    @Column({type:'text', unique:true})
     name: string;
 
     @Column({type: 'text'})
     description: string;
 
-    @Column({type: 'text'})
-    imageUrl: string;
+    @Column({
+        type: 'text',
+        nullable: true})
+    imageUrl?: string;
 
     @Column({
         type: 'simple-enum',
