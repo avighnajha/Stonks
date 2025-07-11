@@ -25,6 +25,7 @@ services:
     environment:
       - PORT=3001
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
+      - INTERNAL_API_KEY=a-very-secret-internal-key
     depends_on:
       - postgres_db
 
@@ -39,6 +40,7 @@ services:
     environment:
       - PORT=3002
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
+      - INTERNAL_API_KEY=a-very-secret-internal-key
     depends_on:
       - postgres_db
   marketplace_service:
@@ -52,6 +54,7 @@ services:
     environment:
       - PORT=3003
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
+      - INTERNAL_API_KEY=a-very-secret-internal-key
     depends_on:
       - postgres_db
 
@@ -66,6 +69,7 @@ services:
     environment:
       - PORT=3004
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
+      - INTERNAL_API_KEY=a-very-secret-internal-key
     depends_on:
       - postgres_db
 

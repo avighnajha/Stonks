@@ -43,7 +43,14 @@ export class TradeService {
             pool.currency_balance+=curCost;
             await this.liqpoolRepository.save(pool)
             await firstValueFrom(
-                this.httpService.post(walletServiceUrl, {userId: userId, amount: curCost}))
+                this.httpService.post(walletServiceUrl,
+                    {userId: userId, amount: curCost},
+                    {
+                        headers: {
+                            'x-internal-api-key': process.env.INTERNAL_API_KEY,
+                        }
+                    }
+                ))
             } catch (error){
                 throw error;
             }
@@ -69,7 +76,13 @@ export class TradeService {
             pool.currency_balance-=curCost;
             this.liqpoolRepository.save(pool);
             await firstValueFrom(
-                this.httpService.post(walletServiceUrl, {userId: userId, amount: curCost}))
+                this.httpService.post(walletServiceUrl,
+                    {userId: userId, amount: curCost},
+                    {
+                        headers: {
+                            'x-internal-api-key': process.env.INTERNAL_API_KEY,
+                        }
+                    }))
         } catch (error){
             throw error;
         }

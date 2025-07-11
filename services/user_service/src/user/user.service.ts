@@ -44,7 +44,14 @@ export class UserService {
             const walletServiceUrl = 'http://wallet_service:3002/wallet';
             
             await firstValueFrom(
-                this.httpService.post(walletServiceUrl, { userId: newUser.id })
+                this.httpService.post(walletServiceUrl,
+                    { userId: newUser.id },
+                    {
+                        headers: {
+                            'x-internal-api-key': process.env.INTERNAL_API_KEY,
+                        }
+                    }
+                    )
             );
 
             this.logger.log(`Wallet created successfully for user ${newUser.id}`);
