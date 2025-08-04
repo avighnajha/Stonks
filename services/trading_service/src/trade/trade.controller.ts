@@ -49,7 +49,7 @@ export class TradeController{
         return this.tradeService.executeSell(assetId, userId, assetAmount)
     }
 
-    @Get('prices')
+    @Post('prices')
     @UseGuards(InternalApiKeyGuard)
     getPrices(@Body(ValidationPipe) getPricesDto: GetPricesDto){
         return this.tradeService.getPrices(getPricesDto.assetIds)

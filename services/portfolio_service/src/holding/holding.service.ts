@@ -5,6 +5,15 @@ import { Repository } from "typeorm";
 import { ArgumentOutOfRangeError, firstValueFrom } from "rxjs";
 import { HttpService } from "@nestjs/axios";
 
+class PortfolioHoldingDto {
+    assetId: string;
+    quantity: number;
+    averageBuyPrice: number;
+    currentPrice: number;
+    currentValue: number;
+    profitLoss: number;
+}
+
 @Injectable()
 export class HoldingService{
     constructor(
@@ -12,26 +21,45 @@ export class HoldingService{
         private readonly holdingRepository: Repository<Holding>,
         private readonly httpService: HttpService
     ){}
-    async getPortfolio(userId){
+    async getPortfolio(userId: string): Promise<PortfolioHoldingDto[]>{
         const tradeServiceUrl = 'http://trade_service:3004/trade/prices'
         const holdings = await this.holdingRepository.find({where: {user_id: userId}})
+        const assetIds = holdings.map(holding=>holding.asset_id)
         try{
-            const prices = await firstValueFrom(
-                this.httpService.get(tradeServiceUrl,
-
+            const response = await firstValueFrom(
+                this.httpService.post<{assetId:string; price: number}[]>(tradeServiceUrl,
+                    {assetIds: assetIds},
                     {
                         headers:{'x-internal-api-key': process.env.INTERNAL_API_KEY}
                     }
                 )
             )
-            for (const holding of holdings){
-                holding.price = prices[holding.asset_id]
+            const pricesData = response.data;
+
+            const priceMap = new Map<string, number>();
+            for (const priceInfo of pricesData){
+                priceMap.set(priceInfo.assetId, priceInfo.price)
+            }
+            const portfolioWithValues: PortfolioHoldingDto[] = holdings.map(holding =>{
+                const currentPrice = priceMap.get(holding.asset_id)||0;
+                const quantity = parseFloat(holding.quantity as any)
+                const averageBuyPrice = parseFloat(holding.average_buy_price as any);
+                const currentValue = currentPrice*quantity;
+                const profitLoss = currentValue - (averageBuyPrice*quantity)
+                return {
+                    assetId: holding.asset_id,
+                    quantity: quantity,
+                    averageBuyPrice: averageBuyPrice,
+                    currentPrice: currentPrice,
+                    currentValue: currentValue,
+                    profitLoss: profitLoss,
+                };
+            });
+            return portfolioWithValues;
         }
-        } catch (error){
+        catch (error){
             throw error;
         }
-        
-        return holdings;
     }
     async updateHoldings(userId, assetId, quantity, tradePrice){
         const holdings = await this.holdingRepository.findOne({where: {user_id: userId, asset_id: assetId}})
