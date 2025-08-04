@@ -6,7 +6,7 @@ import { Holding } from './entities/holding.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Holding]) // <-- Make the Asset repository available
+    TypeOrmModule.forFeature([Holding])
   ],
   controllers: [HoldingController],
   providers: [HoldingService],
