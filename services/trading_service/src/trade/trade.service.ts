@@ -1,9 +1,11 @@
 import { BadRequestException, HttpServer, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import { LiquidityPool } from "./entities/liquidity_pool.entity";
 import { firstValueFrom } from "rxjs";
 import { HttpService } from "@nestjs/axios";
+import { IsArray, IsUUID } from "class-validator";
+
 
 @Injectable()
 export class TradeService {
@@ -88,5 +90,21 @@ export class TradeService {
         }
 
         return {message: `Trade executed succesfully! ${stockAmount} stocks of Stock ${assetId} sold.`};
+    }
+
+    async getPrices(assetIds: string[]): Promise<{ assetId: string; price: number }[]>{
+        if (assetIds.length==0){
+            return [];
+        }
+        const pools = await this.liqpoolRepository.find({
+            where: {
+                asset_id: In(assetIds)
+            }
+        })
+       
+        return pools.map(pool => ({
+            assetId: pool.asset_id,
+            price: parseFloat(pool.currency_balance as any) / parseFloat(pool.asset_balance as any),
+    }));
     }
 }
