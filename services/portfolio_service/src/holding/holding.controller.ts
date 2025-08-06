@@ -2,7 +2,7 @@ import { Body, Controller, Get, Patch, Request, UseGuards, ValidationPipe } from
 import { HoldingService } from "./holding.service";
 import { AuthGuard } from "@nestjs/passport";
 import { InternalApiKeyGuard } from "src/auth/api_key.guard";
-import { equal } from "assert";
+
 
 class UpdateholdingsDto {
     userId: string;
@@ -23,7 +23,7 @@ export class HoldingController{
         return this.holdingService.getPortfolio(userId)
     }
 
-    @Patch("holding")
+    @Patch("update")
     @UseGuards(InternalApiKeyGuard)
     updateHoldings(@Body(ValidationPipe) updateHoldingsDto: UpdateholdingsDto){
         const {userId, assetId, quantity, tradePrice} = updateHoldingsDto;

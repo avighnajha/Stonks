@@ -14,7 +14,6 @@ export class TradeService {
         private readonly liqpoolRepository: Repository<LiquidityPool>,
         private readonly httpService: HttpService,
     ){}
-
     private async findPool(assetId: string){
         const pool = await this.liqpoolRepository.findOne({where: {asset_id: assetId}})
         if(!pool){
@@ -29,21 +28,21 @@ export class TradeService {
         return {price};
     }
 
-    async executeBuy(assetId: string, userId: string, assetAmount: number){
+    async executeBuy(assetId: string, userId: string, stockAmount: number){
         const pool = await this.findPool(assetId);
         
         const walletServiceUrl = 'http://wallet_service:3002/wallet/debit';
+        const portfolioServiceUrl = 'http://portfolio_service:3005/portfolio/update'
         
-        if (pool.asset_balance<=assetAmount){
+        if (pool.asset_balance<=stockAmount){
             throw new BadRequestException('Not enough liquidity');
         }
 
         //Current cost to buy stockAmount number of stocks
-        const curCost = (pool.k/(pool.asset_balance-assetAmount) - pool.currency_balance)
+        const curCost = (pool.k/(pool.asset_balance-stockAmount) - pool.currency_balance)
+
+        //Get money from wallet
         try{
-            pool.asset_balance -= assetAmount;
-            pool.currency_balance+=curCost;
-            await this.liqpoolRepository.save(pool)
             await firstValueFrom(
                 this.httpService.post(walletServiceUrl,
                     {userId: userId, amount: curCost},
@@ -53,11 +52,33 @@ export class TradeService {
                         }
                     }
                 ))
-            } catch (error){
-                throw error;
-            }
+            } 
+        catch (error){
+            throw error;
+        }
 
-        return {message: `Trade executed succesfully! ${assetAmount} stocks of Stock ${assetId} bought`};
+        //Add to portfolio
+        try {
+            await firstValueFrom(
+                this.httpService.patch(portfolioServiceUrl,
+                    {
+                        userId: userId,
+                        assetId: assetId,
+                        quantity: stockAmount,
+                        trade_price: curCost/stockAmount
+                    },
+                    {headers: {'x-internal-api-key': process.env.INTERNAL_API_KEY}}
+                )
+            )
+        } catch (error){
+            throw error;
+        }
+        
+        //Update liq pool
+        pool.asset_balance -= stockAmount;
+        pool.currency_balance+=curCost;
+        await this.liqpoolRepository.save(pool)
+        return {message: `Trade executed succesfully! ${stockAmount} stocks of Stock ${assetId} bought`};
     }
 
     async executeSell(assetId: string, userId: string, stockAmount: number){
@@ -74,9 +95,6 @@ export class TradeService {
         //TODO: Conenct to potfolio servie to check if user even has this many stocks to sell.
 
         try{
-            pool.asset_balance+=stockAmount;
-            pool.currency_balance-=curCost;
-            this.liqpoolRepository.save(pool);
             await firstValueFrom(
                 this.httpService.post(walletServiceUrl,
                     {userId: userId, amount: curCost},
@@ -85,9 +103,35 @@ export class TradeService {
                             'x-internal-api-key': process.env.INTERNAL_API_KEY,
                         }
                     }))
-        } catch (error){
-            throw error;
+                } catch (error){
+                    throw error;
+                }
+                
+        const portfolioServiceUrl = 'http://portfolio_service:3005/portfolio/update'
+        
+        // Updating portfolio with negative quatity
+        try {
+            await firstValueFrom(
+                this.httpService.patch(portfolioServiceUrl,
+                    {
+                        userId: userId,
+                        assetId: assetId,
+                        quantity: -stockAmount,
+                        tradePrice: curCost/stockAmount
+                    },
+                    {
+                        headers: {
+                            'x-internal-api-key': process.env.INTERNAL_API_KEY
+                    }}
+                )
+            )
+        } catch(error){
+            throw error
         }
+
+        pool.asset_balance+=stockAmount;
+        pool.currency_balance-=curCost;
+        this.liqpoolRepository.save(pool);
 
         return {message: `Trade executed succesfully! ${stockAmount} stocks of Stock ${assetId} sold.`};
     }
