@@ -3,27 +3,40 @@ import { TradeService } from "./trade.service";
 import { AuthGuard } from "@nestjs/passport";
 import { IsArray, IsNumber, IsPositive, IsUUID } from "class-validator";
 import { InternalApiKeyGuard } from "src/auth/api_key.guard";
+import { create } from "domain";
 
 
-export class TradeDto {
+class TradeDto {
     @IsNumber()
     @IsPositive()
     assetAmount: number
 }
 
-export class GetPricesDto {
+class GetPricesDto {
   // Ensures the incoming body has a property 'assetIds'
   @IsArray()
   @IsUUID('4', { each: true })
   assetIds: string[];
 }
 
+class CreatePoolDto {
+    assetId: string
+}
+
 @Controller('trade')
 export class TradeController{
     constructor(private readonly tradeService: TradeService){}
+    
+    @Post('create-pool')
+    @UseGuards(InternalApiKeyGuard)
+    async createPool(@Body(ValidationPipe) createPoolDto: CreatePoolDto ){
+        const {assetId} = createPoolDto;
+        return this.tradeService.createPool(assetId);
+    }
 
     @Get('quote/:assetId')
     async getQuote(@Param('assetId', ParseUUIDPipe) assetId: string){
+        console.log("Quoting: ", assetId)
         return this.tradeService.getQuote(assetId);
     }
 

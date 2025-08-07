@@ -22,6 +22,19 @@ export class TradeService {
         return pool;
     }
 
+    async createPool(assetId: string){
+        const existingPool = await this.liqpoolRepository.findOne({ where: { asset_id: assetId } });
+        if (existingPool) {
+            throw new BadRequestException(`A liquidity pool for asset ${assetId} already exists.`);
+        }
+        const newPool = this.liqpoolRepository.create({
+            asset_id: assetId,
+            currency_balance: 1000000,
+            asset_balance: 10000
+        })
+        return await this.liqpoolRepository.save(newPool);
+    }
+
     async getQuote(assetId: string): Promise<{price: number}>{
         const pool = await this.findPool(assetId);
         const price = pool.currency_balance/pool.asset_balance;

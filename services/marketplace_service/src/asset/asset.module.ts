@@ -3,10 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AssetController } from './asset.controller';
 import { AssetService } from './asset.service';
 import { Asset } from './entities/asset.entity'; // <-- Import the entity
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Asset]) // <-- Make the Asset repository available
+    TypeOrmModule.forFeature([Asset]),
+    HttpModule
   ],
   controllers: [AssetController],
   providers: [AssetService],
