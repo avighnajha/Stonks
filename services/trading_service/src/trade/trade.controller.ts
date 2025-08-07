@@ -31,6 +31,7 @@ export class TradeController{
     @UseGuards(InternalApiKeyGuard)
     async createPool(@Body(ValidationPipe) createPoolDto: CreatePoolDto ){
         const {assetId} = createPoolDto;
+        console.log('Creating liq pool for: ', assetId);
         return this.tradeService.createPool(assetId);
     }
 

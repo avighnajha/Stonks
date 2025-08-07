@@ -11,10 +11,14 @@ import { HttpService } from "@nestjs/axios";
 export class AssetService{
     constructor(
         @InjectRepository(Asset)
-        private readonly assetRepository: Repository<Asset>){}
-        private readonly httpService: HttpService;
+        private readonly assetRepository: Repository<Asset>,
+        private readonly httpService: HttpService){}
 
     async getAllAssets() : Promise<Asset[]>{
+        return this.assetRepository.find()
+    }
+
+    async getApprovedAssets(): Promise<Asset[]>{
         return this.assetRepository.find({where: {status: Status.APPROVED}})
     }
 
@@ -37,12 +41,12 @@ export class AssetService{
         if(!asset){
             throw new NotFoundException(`Asset with id: ${assetId} not found`)
         }
-        asset.status = Status.APPROVED;
-        
+        console.log('APPROVING in service')
         //Create a new liquidity pool
-        const tradingServiceUrl = 'http://trade_service:3004/trade/create-pool'
+        const tradingServiceUrl = 'http://trading_service:3004/trade/create-pool'
         try{
-            firstValueFrom(this.httpService.post(tradingServiceUrl,
+            console.log('seinding req')
+            await firstValueFrom(this.httpService.post(tradingServiceUrl,
                 {assetId: assetId},
                 {
                     headers: {
@@ -51,8 +55,9 @@ export class AssetService{
                 }
             ));
         }catch (error){
-            return error;
+            throw error;
         }
+        asset.status = Status.APPROVED;
         return await this.assetRepository.save(asset);
     }
 }

@@ -16,6 +16,11 @@ export class AssetController{
         return this.assetService.getAllAssets();
     }
 
+    @Get('approved')
+    getApprovedAssets(){
+        return this.assetService.getApprovedAssets();
+    }
+
     @Get(':id')
     findOne(@Param('id', ParseUUIDPipe) id: string){
         return this.assetService.findOne(id);
@@ -34,6 +39,7 @@ export class AssetController{
     @Roles(UserRole.ADMIN)
     @UseGuards(AuthGuard('jwt'), RolesGuard)
     approve(@Param('id', ParseUUIDPipe) id: string){
+        console.log("Approving asset: ", id);
         return this.assetService.approve(id);
     }
 }
