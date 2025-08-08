@@ -19,7 +19,7 @@ export class HoldingController{
     @Get()
     @UseGuards(AuthGuard('jwt'))
     getPortfolio(@Request() req){
-        const {userId} = req.user.user_id;
+        const {userId} = req.user.userId;
         return this.holdingService.getPortfolio(userId)
     }
 
@@ -27,6 +27,7 @@ export class HoldingController{
     @UseGuards(InternalApiKeyGuard)
     updateHoldings(@Body(ValidationPipe) updateHoldingsDto: UpdateholdingsDto){
         const {userId, assetId, quantity, tradePrice} = updateHoldingsDto;
+        console.log('------>PORTFOLIO SERVICE          Updating portolio for: ', userId)
         return this.holdingService.updateHoldings(userId, assetId, quantity, tradePrice);
     }
 }

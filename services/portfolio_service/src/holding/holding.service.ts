@@ -22,7 +22,7 @@ export class HoldingService{
         private readonly httpService: HttpService
     ){}
     async getPortfolio(userId: string): Promise<PortfolioHoldingDto[]>{
-        const tradeServiceUrl = 'http://trade_service:3004/trade/prices'
+        const tradeServiceUrl = 'http://trading_service:3004/trade/prices'
         const holdings = await this.holdingRepository.find({where: {user_id: userId}})
         const assetIds = holdings.map(holding=>holding.asset_id)
         try{

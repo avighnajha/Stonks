@@ -44,7 +44,7 @@ export class WalletService{
         } else {
             wallet.balance = Number(wallet.balance) + amountNum;
         }
-        console.log(`Og balance ${og_balance} new balance ${wallet.balance}`)
+        console.log(`--------> WALLET SERVICE     Og balance ${og_balance} new balance ${wallet.balance}`)
         return this.walletRepository.save(wallet);
     }
 }

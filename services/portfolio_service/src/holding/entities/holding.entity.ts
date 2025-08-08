@@ -11,9 +11,9 @@ export class Holding{
     @Column({type: 'uuid'})
     asset_id: string;
 
-    @Column({type:'number'})
+    @Column({ type: 'decimal', precision: 18, scale: 8, default: 0 })
     quantity: number;
 
-    @Column({type: 'number'})
+    @Column({ type: 'decimal', precision: 18, scale: 8, default: 0 })
     average_buy_price: number;
 }

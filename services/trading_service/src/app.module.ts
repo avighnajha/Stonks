@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { TradeModule } from './trade/trade.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PassportModule } from '@nestjs/passport';
+import { JwtStrategy } from './auth/jwt.strategy';
 
 @Module({
   imports: [TradeModule,
@@ -19,6 +20,6 @@ import { PassportModule } from '@nestjs/passport';
 
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, JwtStrategy],
 })
 export class AppModule {}

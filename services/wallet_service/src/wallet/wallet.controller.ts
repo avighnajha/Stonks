@@ -11,6 +11,7 @@ class CreateWalletDto{
     userId: string;
 }
 class UpdateBalanceDto{
+    userId: string
     amount: number
 }
 
@@ -37,18 +38,16 @@ export class WalletController {
     @Post('debit')
     // @UseGuards(AuthGuard('jwt'))
     @UseGuards(InternalApiKeyGuard)
-    debit(@Request() req, @Body(ValidationPipe) updateBalanceDto:UpdateBalanceDto){
-        const {userId} = req.user.userId;
-        const {amount} = updateBalanceDto;
+    debit(@Body(ValidationPipe) updateBalanceDto:UpdateBalanceDto){
+        const {userId, amount} = updateBalanceDto;
 
         return this.walletService.changeBalance(userId, amount, true)
     }
     @Post('credit')
     // @UseGuards(AuthGuard('jwt'))
     @UseGuards(InternalApiKeyGuard)
-    credit(@Request() req, @Body(ValidationPipe) updateBalanceDto: UpdateBalanceDto){
-        const {userId} = req.user.userId;
-        const {amount} = updateBalanceDto;
+    credit(@Body(ValidationPipe) updateBalanceDto: UpdateBalanceDto){
+        const {userId, amount} = updateBalanceDto;
         return this.walletService.changeBalance(userId, amount, false)
     }
 }

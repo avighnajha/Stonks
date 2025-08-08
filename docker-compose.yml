@@ -72,14 +72,14 @@ services:
       - INTERNAL_API_KEY=a-very-secret-internal-key
     depends_on:
       - postgres_db
-  portolio_service:
+  portfolio_service:
     build:
       context: ./services/portfolio_service
     command: npm run start:dev
     ports:
       - "3005:3005"
     volumes:
-      - ${PWD}/services/trading_service:/usr/src/app
+      - ${PWD}/services/portfolio_service:/usr/src/app
     environment:
       - PORT=3005
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db

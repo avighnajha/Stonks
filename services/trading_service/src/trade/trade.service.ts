@@ -5,10 +5,14 @@ import { LiquidityPool } from "./entities/liquidity_pool.entity";
 import { firstValueFrom } from "rxjs";
 import { HttpService } from "@nestjs/axios";
 import { IsArray, IsUUID } from "class-validator";
+import { error } from "console";
 
 
 @Injectable()
 export class TradeService {
+    private readonly walletDebitUrl = 'http://wallet_service:3002/wallet/debit';
+    private readonly walletCreditUrl = 'http://wallet_service:3002/wallet/credit';
+    private readonly portfolioServiceUrl = 'http://portfolio_service:3005/portfolio/update'
     constructor(
         @InjectRepository(LiquidityPool)
         private readonly liqpoolRepository: Repository<LiquidityPool>,
@@ -44,9 +48,6 @@ export class TradeService {
     async executeBuy(assetId: string, userId: string, stockAmount: number){
         const pool = await this.findPool(assetId);
         
-        const walletServiceUrl = 'http://wallet_service:3002/wallet/debit';
-        const portfolioServiceUrl = 'http://portfolio_service:3005/portfolio/update'
-        
         if (pool.asset_balance<=stockAmount){
             throw new BadRequestException('Not enough liquidity');
         }
@@ -54,26 +55,26 @@ export class TradeService {
         //Current cost to buy stockAmount number of stocks
         const curCost = (pool.k/(pool.asset_balance-stockAmount) - pool.currency_balance)
 
-        //Get money from wallet
         try{
+            //Get money from wallet
             await firstValueFrom(
-                this.httpService.post(walletServiceUrl,
+                this.httpService.post(this.walletDebitUrl,
                     {userId: userId, amount: curCost},
                     {
                         headers: {
                             'x-internal-api-key': process.env.INTERNAL_API_KEY,
                         }
                     }
-                ))
-            } 
+                ))            
+          } 
         catch (error){
             throw error;
         }
 
-        //Add to portfolio
-        try {
+        try{
+             //Add to portfolio
             await firstValueFrom(
-                this.httpService.patch(portfolioServiceUrl,
+                this.httpService.patch(this.portfolioServiceUrl,
                     {
                         userId: userId,
                         assetId: assetId,
@@ -83,7 +84,13 @@ export class TradeService {
                     {headers: {'x-internal-api-key': process.env.INTERNAL_API_KEY}}
                 )
             )
-        } catch (error){
+        }
+        catch{
+            await firstValueFrom(
+                this.httpService.post(this.walletCreditUrl, { userId: userId, amount: curCost }, { headers:{
+                            'x-internal-api-key': process.env.INTERNAL_API_KEY,
+                        } })
+            );
             throw error;
         }
         
@@ -97,9 +104,7 @@ export class TradeService {
     async executeSell(assetId: string, userId: string, stockAmount: number){
         const pool = await this.liqpoolRepository.findOne({where:{id:assetId}})
 
-        
-        const walletServiceUrl = 'http://wallet_service:3002/wallet/credit'
-
+    
         if(!pool){
             throw new NotFoundException('Wallet not found')
         }
@@ -109,7 +114,7 @@ export class TradeService {
 
         try{
             await firstValueFrom(
-                this.httpService.post(walletServiceUrl,
+                this.httpService.post(this.walletCreditUrl,
                     {userId: userId, amount: curCost},
                     {
                         headers: {
@@ -120,12 +125,11 @@ export class TradeService {
                     throw error;
                 }
                 
-        const portfolioServiceUrl = 'http://portfolio_service:3005/portfolio/update'
         
         // Updating portfolio with negative quatity
         try {
             await firstValueFrom(
-                this.httpService.patch(portfolioServiceUrl,
+                this.httpService.patch(this.portfolioServiceUrl,
                     {
                         userId: userId,
                         assetId: assetId,
@@ -139,6 +143,11 @@ export class TradeService {
                 )
             )
         } catch(error){
+            await firstValueFrom(
+                this.httpService.post(this.walletDebitUrl, { userId, amount: curCost }, { headers:{
+                            'x-internal-api-key': process.env.INTERNAL_API_KEY,
+                        } })
+            );
             throw error
         }
 

@@ -41,11 +41,9 @@ export class AssetService{
         if(!asset){
             throw new NotFoundException(`Asset with id: ${assetId} not found`)
         }
-        console.log('APPROVING in service')
         //Create a new liquidity pool
         const tradingServiceUrl = 'http://trading_service:3004/trade/create-pool'
         try{
-            console.log('seinding req')
             await firstValueFrom(this.httpService.post(tradingServiceUrl,
                 {assetId: assetId},
                 {
