@@ -32,6 +32,7 @@ export class WalletService{
     async changeBalance(userId: string, amount: number, debit: boolean): Promise<Wallet> {
         const wallet = await this.getWallet(userId);
         const amountNum = Number(amount);
+        console.log("Debiting from wallet: ", amount, ", available balance: ", wallet.balance)
         if(!wallet){
             throw new NotFoundException('Wallet not found');
         }

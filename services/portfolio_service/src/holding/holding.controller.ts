@@ -27,7 +27,7 @@ export class HoldingController{
     @UseGuards(InternalApiKeyGuard)
     updateHoldings(@Body(ValidationPipe) updateHoldingsDto: UpdateholdingsDto){
         const {userId, assetId, quantity, tradePrice} = updateHoldingsDto;
-        console.log('------>PORTFOLIO SERVICE          Updating portolio for: ', userId)
+        console.log('------>PORTFOLIO SERVICE          Updating portolio for: ', userId, quantity, tradePrice)
         return this.holdingService.updateHoldings(userId, assetId, quantity, tradePrice);
     }
 }
