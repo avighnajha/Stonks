@@ -2,10 +2,11 @@ import { BadRequestException, HttpServer, Injectable, NotFoundException } from "
 import { InjectRepository } from "@nestjs/typeorm";
 import { EntityManager, In, Repository } from "typeorm";
 import { LiquidityPool } from "./entities/liquidity_pool.entity";
-import { firstValueFrom } from "rxjs";
+import { firstValueFrom, timestamp } from "rxjs";
 import { HttpService } from "@nestjs/axios";
 import { IsArray, IsUUID } from "class-validator";
 import { error } from "console";
+import { PriceHistory } from "./entities/price-history.entity";
 
 
 @Injectable()
@@ -16,8 +17,9 @@ export class TradeService {
     constructor(
         @InjectRepository(LiquidityPool)
         private readonly liqpoolRepository: Repository<LiquidityPool>,
+        private readonly priceHistoryRepository: Repository<PriceHistory>,
         private readonly httpService: HttpService,
-        private readonly entityManager: EntityManager
+        private readonly entityManager: EntityManager,
     ){}
     private async findPool(assetId: string){
         const pool = await this.liqpoolRepository.findOne({where: {asset_id: assetId}})
@@ -45,6 +47,14 @@ export class TradeService {
         const price = pool.currency_balance/pool.asset_balance;
         return {price};
     }
+
+    async getHistory(assetId: string){
+        return this.priceHistoryRepository.find(
+            {
+                where:{asset_id: assetId},
+                order: {timestamp: 'ASC'}});
+    }
+
     async executeBuy(assetId: string, userId: string, stockAmount: number) {
     // Wrap the entire operation in a database transaction for safety.
     return this.entityManager.transaction(async (transactionalEntityManager) => {
@@ -109,10 +119,17 @@ export class TradeService {
              throw new Error('Failed to update portfolio. Trade has been rolled back.');
         }
 
-        //FINALLY, UPDATE THE LIQUIDITY POOL
+        //UPDATE THE LIQUIDITY POOL
         pool.asset_balance = currentStockBalance - stockToBuy;
         pool.currency_balance = currentCashBalance + cost;
         await transactionalEntityManager.save(pool);
+
+        const pricePoint = this.priceHistoryRepository.create(
+            {
+                asset_id: assetId,
+                price: pricePerShare
+        })
+        await transactionalEntityManager.save(pricePoint)
 
         return { message: `Trade executed successfully! ${stockAmount} stocks of Asset ${assetId} bought.` };
     });
@@ -131,34 +148,17 @@ export class TradeService {
         throw new NotFoundException('Liquidity pool not found for this asset.');
         }
 
-        // Before doing any math, we must confirm the user has enough stock to sell.
-        // try {
-        // // This assumes your portfolio-service has a GET endpoint to check a specific holding.
-        // const portfolioCheckUrl = `${this.portfolioServiceUrl}/holding/${userId}/${assetId}`;
-        // const response = await firstValueFrom(
-        //     this.httpService.get(portfolioCheckUrl, {
-        //     headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY },
-        //     }),
-        // );
-        // const holding = response.data;
-        // if (!holding || parseFloat(holding.quantity) < stockAmount) {
-        //     throw new BadRequestException('Insufficient stock ownership to sell.');
-        // }
-        // } catch (error) {
-        // // If the portfolio service throws a 404 (holding not found) or any other error.
-        // throw new BadRequestException(error.response?.data?.message || 'Failed to verify stock ownership.');
-        // }
 
-        // 2. Convert all values to numbers for safe calculation.
+        // Convert all values to numbers for safe calculation.
         const currentStockBalance = parseFloat(pool.asset_balance as any);
         const currentCashBalance = parseFloat(pool.currency_balance as any);
         const stockToSell = parseFloat(stockAmount as any);
 
-        // 3. Calculate the payout for selling the stock.
+        // Calculate the payout for selling the stock.
         const payout = currentCashBalance - (pool.k / (currentStockBalance + stockToSell));
         const pricePerShare = payout / stockToSell;
 
-        // 4. --- UPDATE THE PORTFOLIO FIRST ---
+        // --- UPDATE THE PORTFOLIO FIRST ---
         // We remove the stock from the user's portfolio before giving them the money.
         try {
         await firstValueFrom(
@@ -178,7 +178,7 @@ export class TradeService {
         throw new Error('Failed to update portfolio. Trade has been rolled back.');
         }
 
-        // 5. --- IF PORTFOLIO UPDATE SUCCEEDS, CREDIT THE WALLET ---
+        // --- IF PORTFOLIO UPDATE SUCCEEDS, CREDIT THE WALLET ---
         try {
             await firstValueFrom(
                 this.httpService.post( // Use PATCH to the unified endpoint
@@ -200,10 +200,17 @@ export class TradeService {
             throw new BadRequestException('Wallet credit failed. Trade has been rolled back.');
         }
 
-        // 6. --- FINALLY, UPDATE THE LIQUIDITY POOL ---
+        //--- FINALLY, UPDATE THE LIQUIDITY POOL ---
         pool.asset_balance = currentStockBalance + stockToSell;
         pool.currency_balance = currentCashBalance - payout;
         await transactionalEntityManager.save(pool);
+
+        const pricePoint = this.priceHistoryRepository.create({
+            asset_id: assetId,
+            price: pricePerShare
+        })
+
+        await transactionalEntityManager.save(pricePoint);
 
         return { message: `Trade executed successfully! ${stockAmount} stocks of Asset ${assetId} sold.` };
     });

@@ -41,6 +41,11 @@ export class TradeController{
         return this.tradeService.getQuote(assetId);
     }
 
+    @Post('history/:assetId')
+    getHistory(@Param('assetId', ParseUUIDPipe) assetId: string){
+        return this.tradeService.getHistory(assetId);
+    }
+
     @Post('buy/:assetId')
     @UseGuards(AuthGuard('jwt'))
     buy(@Request() req,
