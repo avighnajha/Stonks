@@ -5,9 +5,11 @@ import { TradeModule } from './trade/trade.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './auth/jwt.strategy';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [TradeModule,
+          ConfigModule.forRoot({ isGlobal: true }),
           PassportModule.register({defaultStrategy: 'jwt'}),
           TypeOrmModule.forRoot({
                 type: 'postgres',

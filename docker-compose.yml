@@ -14,18 +14,44 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # This is now the ONLY service with a public port for your app.
+  api_gateway:
+    build:
+      context: ./services/api_gateway
+    command: npm run start:dev
+    ports:
+      - "8080:8080"
+    volumes:
+      - ${PWD}/services/api_gateway:/usr/src/app
+    environment:
+      - PORT=8080
+      # We need the JWT secret here to validate tokens
+      - JWT_SECRET=${JWT_SECRET}
+      # We define the internal URLs for our other services here
+      - USER_SERVICE_URL=http://user_service:3001
+      - WALLET_SERVICE_URL=http://wallet_service:3002
+      - MARKETPLACE_SERVICE_URL=http://marketplace_service:3003
+      - TRADING_SERVICE_URL=http://trading_service:3004
+      - PORTFOLIO_SERVICE_URL=http://portfolio_service:3005
+    depends_on:
+      - user_service
+      - wallet_service
+      - marketplace_service
+      - trading_service
+      - portfolio_service
   user_service:
     build:
       context: ./services/user_service
     command: npm run start:dev
-    ports:
-      - "3001:3001"
+    # ports:
+    #   - "3001:3001"
     volumes:
       - ${PWD}/services/user_service:/usr/src/app
     environment:
       - PORT=3001
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
-      - INTERNAL_API_KEY=a-very-secret-internal-key
+      - JWT_SECRET=${JWT_SECRET}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     depends_on:
       - postgres_db
 
@@ -33,28 +59,30 @@ services:
     build:
       context: ./services/wallet_service
     command: npm run start:dev
-    ports:
-      - "3002:3002"
+    # ports:
+    #   - "3002:3002"
     volumes:
       - ${PWD}/services/wallet_service:/usr/src/app
     environment:
       - PORT=3002
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
-      - INTERNAL_API_KEY=a-very-secret-internal-key
+      - JWT_SECRET=${JWT_SECRET}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     depends_on:
       - postgres_db
   marketplace_service:
     build:
       context: ./services/marketplace_service
     command: npm run start:dev
-    ports:
-      - "3003:3003"
+    # ports:
+    #   - "3003:3003"
     volumes:
       - ${PWD}/services/marketplace_service:/usr/src/app
     environment:
       - PORT=3003
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
-      - INTERNAL_API_KEY=a-very-secret-internal-key
+      - JWT_SECRET=${JWT_SECRET}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     depends_on:
       - postgres_db
 
@@ -62,28 +90,30 @@ services:
     build:
       context: ./services/trading_service
     command: npm run start:dev
-    ports:
-      - "3004:3004"
+    # ports:
+    #   - "3004:3004"
     volumes:
       - ${PWD}/services/trading_service:/usr/src/app
     environment:
       - PORT=3004
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
-      - INTERNAL_API_KEY=a-very-secret-internal-key
+      - JWT_SECRET=${JWT_SECRET}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     depends_on:
       - postgres_db
   portfolio_service:
     build:
       context: ./services/portfolio_service
     command: npm run start:dev
-    ports:
-      - "3005:3005"
+    # ports:
+    #   - "3005:3005"
     volumes:
       - ${PWD}/services/portfolio_service:/usr/src/app
     environment:
       - PORT=3005
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
-      - INTERNAL_API_KEY=a-very-secret-internal-key
+      - JWT_SECRET=${JWT_SECRET}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     depends_on:
       - postgres_db
 

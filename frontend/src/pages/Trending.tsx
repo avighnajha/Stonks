@@ -8,7 +8,6 @@ import haterStock from '@/assets/hater-stock.jpg';
 import elonStock from '@/assets/elon-stock.jpg';
 import aiStock from '@/assets/ai-stock.jpg';
 
-// Mock trending data
 const trendingData = {
   hottest: [
     {

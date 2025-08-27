@@ -5,10 +5,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { HoldingModule } from './holding/holding.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
     HoldingModule,
+    ConfigModule.forRoot({ isGlobal: true }),
     PassportModule.register({defaultStrategy: 'jwt'}),
     TypeOrmModule.forRoot({
       type: 'postgres',
