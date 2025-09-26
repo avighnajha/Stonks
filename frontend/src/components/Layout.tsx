@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { User, TrendingUp, PieChart, Search } from 'lucide-react';
+import { User, TrendingUp, PieChart, Search, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProfileModal } from './ProfileModal';
+import { LoginModal } from './LoginModal';
+import { useAuth } from '@/hooks/useAuth';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,7 +12,10 @@ interface LayoutProps {
 }
 
 export const Layout = ({ children, activeTab, onTabChange }: LayoutProps) => {
+  const { isAuthenticated, user, logout } = useAuth();
+  
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
 
   const tabs = [
     { id: 'explore', label: 'Explore', icon: Search },
@@ -31,15 +36,26 @@ export const Layout = ({ children, activeTab, onTabChange }: LayoutProps) => {
               InvestPeople
             </h1>
           </div>
+          {isAuthenticated? (
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => setIsProfileOpen(true)}
+            onClick={()=>setIsProfileOpen(true)}
             className="bg-secondary border-border hover:bg-accent"
           >
             <User className="h-4 w-4 mr-2" />
             Profile
-          </Button>
+          </Button>) : (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setIsLoginOpen(true)}
+              className="bg-secondary border-border hover:bg-accent"
+            >
+              <LogIn className="h-4 w-4 mr-2" />
+              Login
+            </Button>
+          )}
         </div>
       </header>
 
@@ -75,6 +91,7 @@ export const Layout = ({ children, activeTab, onTabChange }: LayoutProps) => {
       </nav>
 
       <ProfileModal open={isProfileOpen} onOpenChange={setIsProfileOpen} />
+      <LoginModal open={isLoginOpen} onOpenChange={setIsLoginOpen}/>
     </div>
   );
 };
