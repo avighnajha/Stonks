@@ -10,7 +10,13 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Install ALL dependencies, including devDependencies, which we need for `nest`
-RUN npm install
+RUN npm install --legacy-peer-deps
+
+# Ensure NestJS CLI is available globally
+RUN npm install -g @nestjs/cli
+
+# Copy the rest of the application code
+COPY . .
 
 # This just tells Docker what port the container will eventually listen on.
 EXPOSE 3001

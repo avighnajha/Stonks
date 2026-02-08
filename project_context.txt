@@ -1,0 +1,72 @@
+Project Context: InvestPeople (Market Simulation)
+1. High-Level Vision
+InvestPeople is a social stock-market platform where "People" (or social profiles) are the assets being traded. The goal is to evolve this from a static e-commerce "Shop" into a living Market Simulation driven by a Matching Engine and an ecosystem of automated Trading Bots that simulate real-world price discovery, liquidity, and volatility.
+
+2. Technical Stack
+Backend: Node.js with NestJS (Microservices architecture).
+
+Frontend: React (Vite), Tailwind CSS, shadcn/ui.
+
+State Management: Zustand (Frontend global auth and UI state).
+
+Database: PostgreSQL (Managed via Docker).
+
+API Management: Central API Gateway (NestJS) handling JWT validation and request proxying.
+
+Infrastructure: Docker Compose for local orchestration.
+
+Communication: Currently REST/HTTP (Moving toward WebSockets for live feeds).
+
+3. Current State of Development (Completed)
+Infrastructure: docker-compose.yml is configured for a multi-container setup (DB, Gateway, and 5 microservices).
+
+API Gateway: * Acts as the single entry point (Port 8080).
+
+Implements JwtStrategy for global authentication.
+
+Features a PublicController for /auth and public GET /assets (allowing guests to explore).
+
+Features a ProxyController that forwards all other requests to internal services based on URL prefixes.
+
+Authentication: * User-Service handles JWT generation.
+
+Frontend auth.store.ts (Zustand) manages tokens and isLoggedIn state.
+
+Frontend UI: * Basic Layout with Bottom Nav (Explore, Portfolio, Trending).
+
+LoginModal and ProfileModal integrated with the Auth store.
+
+axiosInstance.ts configured for API communication.
+
+4. The "Big Pivot": From Shop to Exchange (Work in Progress)
+The project is currently transitioning from a "Retail Shop Model" (where users buy from a static pool at a fixed price) to an "Order Book Model" (where prices are determined by supply and demand).
+
+The New Requirements:
+Trading Service (Matching Engine): Needs to be rewritten to handle Orders (Bids vs. Asks) rather than just direct purchases.
+
+Order Book: A new table/logic to store "Pending" orders.
+
+Price Discovery: The "current price" is no longer a database column in Assets; it is the price of the most recent entry in the Trades table.
+
+5. Immediate Technical Goals for the Agent
+Matching Engine: Implement logic in the Trading Service that compares a new BUY order against existing SELL orders in the database.
+
+WebSocket Integration: Set up Socket.io or NestJS Gateways to push "Last Price" updates to the frontend in real-time.
+
+Market Data Service: Create an aggregator to turn individual trades into OHLC (Open, High, Low, Close) data for candlestick charts.
+
+The Bot Service: Create a new microservice that simulates 10–50 "Headless Users" (Bots) that place orders every few seconds to create market activity.
+
+6. Known Challenges / Troubleshooting Context
+Environment Variables: The system relies on .env at the root. If the Gateway shows "JWT_SECRET not set," the Docker context is likely missing the .env link.
+
+CORS/Ports: Only the API Gateway is public (8080). Microservices communicate internally via Docker service names (e.g., http://user_service:3001).
+
+Frontend Dependencies: Ensure axios, zustand, and lucide-react are installed in frontend/package.json. If shadcn components fail, the specific primitive (e.g., @radix-ui/react-dialog) might be missing.
+
+7. Database Schema Needs (Next Steps)
+The Agent should look to implement or expand these tables:
+
+Orders: id, userId, assetId, type (BUY/SELL), status (OPEN/FILLED/CANCELLED), limitPrice, quantity.
+
+Trades: id, buyerId, sellerId, assetId, price, quantity, timestamp.

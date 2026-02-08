@@ -10,7 +10,13 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Install ALL dependencies, including devDependencies
-RUN npm install
+RUN npm install --legacy-peer-deps
+
+# Ensure NestJS CLI is available globally
+RUN npm install -g @nestjs/cli
+
+# Copy the rest of the application code
+COPY . .
 
 # Expose the port the gateway will run on.
 # This should match the PORT environment variable in your docker-compose.yml
