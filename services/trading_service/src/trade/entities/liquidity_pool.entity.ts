@@ -1,4 +1,4 @@
-import { Column, Decimal128, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity('liquidity_pool')
 export class LiquidityPool{

@@ -1,7 +1,7 @@
-
+version: '3.8'
 
 services:
-  # The single PostgreSQL database for the entire application
+  # The single PostgreSQL database
   postgres_db:
     image: postgres:14-alpine
     container_name: postgres_db
@@ -14,7 +14,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  # This is now the ONLY service with a public port for your app.
   api_gateway:
     build:
       context: ./services/api_gateway
@@ -23,11 +22,11 @@ services:
       - "8080:8080"
     volumes:
       - ./services/api_gateway:/usr/src/app
+      # --- THE FIX ---
+      - /usr/src/app/node_modules
     environment:
       - PORT=8080
-      # We need the JWT secret here to validate tokens
       - JWT_SECRET=${JWT_SECRET}
-      # We define the internal URLs for our other services here
       - USER_SERVICE_URL=http://user_service:3001
       - WALLET_SERVICE_URL=http://wallet_service:3002
       - MARKETPLACE_SERVICE_URL=http://marketplace_service:3003
@@ -39,14 +38,15 @@ services:
       - marketplace_service
       - trading_service
       - portfolio_service
+
   user_service:
     build:
       context: ./services/user_service
     command: npm run start:dev
-    # ports:
-    #   - "3001:3001"
     volumes:
       - ./services/user_service:/usr/src/app
+      # --- THE FIX ---
+      - /usr/src/app/node_modules
     environment:
       - PORT=3001
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
@@ -59,10 +59,10 @@ services:
     build:
       context: ./services/wallet_service
     command: npm run start:dev
-    # ports:
-    #   - "3002:3002"
     volumes:
       - ./services/wallet_service:/usr/src/app
+      # --- THE FIX ---
+      - /usr/src/app/node_modules
     environment:
       - PORT=3002
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
@@ -70,14 +70,15 @@ services:
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     depends_on:
       - postgres_db
+
   marketplace_service:
     build:
       context: ./services/marketplace_service
     command: npm run start:dev
-    # ports:
-    #   - "3003:3003"
     volumes:
       - ./services/marketplace_service:/usr/src/app
+      # --- THE FIX ---
+      - /usr/src/app/node_modules
     environment:
       - PORT=3003
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
@@ -90,10 +91,10 @@ services:
     build:
       context: ./services/trading_service
     command: npm run start:dev
-    # ports:
-    #   - "3004:3004"
     volumes:
       - ./services/trading_service:/usr/src/app
+      # --- THE FIX ---
+      - /usr/src/app/node_modules
     environment:
       - PORT=3004
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
@@ -101,14 +102,15 @@ services:
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     depends_on:
       - postgres_db
+
   portfolio_service:
     build:
       context: ./services/portfolio_service
     command: npm run start:dev
-    # ports:
-    #   - "3005:3005"
     volumes:
       - ./services/portfolio_service:/usr/src/app
+      # --- THE FIX ---
+      - /usr/src/app/node_modules
     environment:
       - PORT=3005
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db

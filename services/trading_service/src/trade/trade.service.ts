@@ -1,11 +1,9 @@
-import { BadRequestException, HttpServer, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { EntityManager, In, Repository } from "typeorm";
 import { LiquidityPool } from "./entities/liquidity_pool.entity";
-import { firstValueFrom, timestamp } from "rxjs";
+import { firstValueFrom } from "rxjs";
 import { HttpService } from "@nestjs/axios";
-import { IsArray, IsUUID } from "class-validator";
-import { error } from "console";
 import { PriceHistory } from "./entities/price-history.entity";
 
 
@@ -17,6 +15,7 @@ export class TradeService {
     constructor(
         @InjectRepository(LiquidityPool)
         private readonly liqpoolRepository: Repository<LiquidityPool>,
+        @InjectRepository(PriceHistory)
         private readonly priceHistoryRepository: Repository<PriceHistory>,
         private readonly httpService: HttpService,
         private readonly entityManager: EntityManager,
@@ -68,16 +67,19 @@ export class TradeService {
             throw new NotFoundException('Liquidity pool not found for this asset.');
         }
 
-        const currentStockBalance = parseFloat(pool.asset_balance as any);
-        const currentCashBalance = parseFloat(pool.currency_balance as any);
-        const stockToBuy = parseFloat(stockAmount as any);
+        const currentStockBalance = Number(pool.asset_balance);
+        const currentCashBalance = Number(pool.currency_balance);
+        const stockToBuy = Number(stockAmount);
 
         if (currentStockBalance <= stockToBuy) {
             throw new BadRequestException('Not enough liquidity in the pool.');
         }
 
-        //Calculate the cost of the trade using numeric values.
-        const cost = (pool.k / (currentStockBalance - stockToBuy)) - currentCashBalance;
+        //Calculate the cost of the trade using AMM formula
+        const k = currentCashBalance * currentStockBalance;
+        const newStockBalance = currentStockBalance - stockToBuy;
+        const newCashBalance = k / newStockBalance;
+        const cost = newCashBalance - currentCashBalance;
         const pricePerShare = cost / stockToBuy;
 
         //DEBIT THE WALLET FIRST
@@ -150,12 +152,15 @@ export class TradeService {
 
 
         // Convert all values to numbers for safe calculation.
-        const currentStockBalance = parseFloat(pool.asset_balance as any);
-        const currentCashBalance = parseFloat(pool.currency_balance as any);
-        const stockToSell = parseFloat(stockAmount as any);
+        const currentStockBalance = Number(pool.asset_balance);
+        const currentCashBalance = Number(pool.currency_balance);
+        const stockToSell = Number(stockAmount);
 
-        // Calculate the payout for selling the stock.
-        const payout = currentCashBalance - (pool.k / (currentStockBalance + stockToSell));
+        // Calculate the payout for selling the stock using AMM formula.
+        const k = currentCashBalance * currentStockBalance;
+        const newStockBalance = currentStockBalance + stockToSell;
+        const newCashBalance = k / newStockBalance;
+        const payout = currentCashBalance - newCashBalance;
         const pricePerShare = payout / stockToSell;
 
         // --- UPDATE THE PORTFOLIO FIRST ---
@@ -285,7 +290,7 @@ export class TradeService {
        
         return pools.map(pool => ({
             assetId: pool.asset_id,
-            price: parseFloat(pool.currency_balance as any) / parseFloat(pool.asset_balance as any),
+            price: Number(pool.currency_balance) / Number(pool.asset_balance),
     }));
     }
 }

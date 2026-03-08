@@ -1,4 +1,3 @@
-import { cp } from "fs";
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity('price_history')

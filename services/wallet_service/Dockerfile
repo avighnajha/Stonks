@@ -10,7 +10,7 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Install ALL dependencies, including devDependencies, which we need for `nest`
-RUN npm install --legacy-peer-deps
+RUN npm install
 
 # Ensure NestJS CLI is available globally
 RUN npm install -g @nestjs/cli
