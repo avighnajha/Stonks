@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Plus, User, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ProfileModalProps {
   open: boolean;
@@ -21,12 +22,13 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
     imageLink: ''
   });
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const userData = {
-    name: 'Alex Thompson',
-    email: 'alex.thompson@email.com',
-    balance: 15420.50,
-    totalInvested: 8580.00
+    name: user?.name || 'User',
+    email: user?.email || 'user@example.com',
+    balance: user?.balance || 0,
+    totalInvested: user?.totalInvested || 0
   };
 
   const handleIPOSubmit = (e: React.FormEvent) => {

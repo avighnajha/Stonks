@@ -13,11 +13,10 @@ export class UserController {
         return this.userService.create(createUserDto)
     }
 
-    @Get('login')
+    @Post('login')
     @HttpCode(HttpStatus.OK)
     login(@Body(ValidationPipe) loginUserDto: LoginUserDTO){
         console.log("User logging in")
         return this.userService.login(loginUserDto)
     }
-
 }

@@ -62,7 +62,20 @@ export class UserService {
         const {password_hash, ...result} = newUser;
         
         console.log(`--- New user registered: ${email} ---`);
-        return result;
+        
+        // Generate token for new user
+        const payload = { email: newUser.email, sub: newUser.id, role: newUser.role }
+        const token = this.jwtService.sign(payload);
+        
+        return {
+            token,
+            user: {
+                id: newUser.id,
+                email: newUser.email,
+                name: newUser.username,
+                balance: 0
+            }
+        };
     }
     async login(loginUserDto: LoginUserDTO){
         const {email, password} = loginUserDto;
@@ -70,7 +83,7 @@ export class UserService {
         if (!foundUser){
             throw new UnauthorizedException("Invalid login details");
         }
-        const passMatch = bcrypt.compare(password, foundUser.password_hash) 
+        const passMatch = await bcrypt.compare(password, foundUser.password_hash) 
         if (!passMatch){
             throw new UnauthorizedException("Invalid login details");
         }
@@ -78,7 +91,13 @@ export class UserService {
         //jwt payload checked when logging in
         const payload = { email: foundUser.email, sub: foundUser.id, role: foundUser.role }
         return {
-            access_token: this.jwtService.sign(payload)
+            token: this.jwtService.sign(payload),
+            user: {
+                id: foundUser.id,
+                email: foundUser.email,
+                name: foundUser.username,
+                balance: 0
+            }
         };
     }
 }
