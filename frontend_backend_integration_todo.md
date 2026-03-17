@@ -3,9 +3,9 @@
 ## 🚀 **PHASE 1: Core Infrastructure Setup**
 
 ### 1.1 API Configuration & Environment Setup (SKIP FOR NOW WILL DO LATER)
-- [ ] Update `axiosInstance.ts` to support both local development (`http://localhost:8080`) and production
-- [ ] Add environment variables for API base URL
-- [ ] Configure axios interceptors for JWT token handling (auto-attach to requests)
+- [x] Update `axiosInstance.ts` to support both local development (`http://localhost:8080`) and production
+- [x] Add environment variables for API base URL
+- [x] Configure axios interceptors for JWT token handling (auto-attach to requests)
 - [ ] Add request/response interceptors for error handling and loading states
 
 ### 1.2 Authentication System Completion
@@ -18,7 +18,7 @@
 ## 📊 **PHASE 2: API Layer Implementation**
 
 ### 2.1 Authentication APIs
-- [ ] Complete `auth.api.ts` with proper error handling
+- [x] Complete `auth.api.ts` with proper error handling
 - [ ] Add user profile API calls (get current user, update profile)
 
 ### 2.2 Trading APIs
@@ -79,15 +79,15 @@
 ## 🔐 **PHASE 4: Authentication & Security**
 
 ### 4.1 Route Protection
-- [ ] Add authentication guards to protected pages (Portfolio, Trading)
-- [ ] Implement redirect logic for unauthenticated users
+- [x] Add authentication guards to protected pages (Portfolio, Trading)
+- [x] Implement redirect logic for unauthenticated users
 - [ ] Add role-based UI elements (admin features)
 
 ### 4.2 Error Handling
-- [ ] Implement global error handling for API calls
-- [ ] Add user-friendly error messages
+- [x] Implement global error handling for API calls
+- [x] Add user-friendly error messages
 - [ ] Handle network errors and retries
-- [ ] Add loading states throughout the app
+- [x] Add loading states throughout the app
 
 ## 📡 **PHASE 5: Real-Time Features**
 
