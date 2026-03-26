@@ -110,4 +110,33 @@ export class HoldingService{
         }
     }
 
+    // Freeze holdings when placing a sell order
+    async freezeHoldings(userId: string, assetId: string, quantity: number): Promise<Holding>{
+        const holding = await this.holdingRepository.findOne({ where: { user_id: userId, asset_id: assetId } });
+        if (!holding) {
+            throw new BadRequestException("Holding not found for the specified asset.");
+        }
+        const quantityNum = Number(quantity);
+        if (holding.quantity < quantityNum){
+            throw new BadRequestException("Insufficient holdings to freeze.");
+        }
+        holding.quantity = Number(holding.quantity) - quantityNum;
+        holding.frozen_quantity = Number(holding.frozen_quantity) + quantityNum;
+        return await this.holdingRepository.save(holding);
+    }
+
+    // Unfreeze holdings if order is cancelled or partially filled
+    async unfreezeHoldings(userId: string, assetId: string, quantity: number): Promise<Holding>{
+        const holding = await this.holdingRepository.findOne({ where: { user_id: userId, asset_id: assetId } });
+        if (!holding) {
+            throw new BadRequestException("Holding not found for the specified asset.");
+        }
+        const quantityNum = Number(quantity);
+        if (holding.frozen_quantity < quantityNum){
+            throw new BadRequestException("Insufficient frozen holdings to unfreeze.");
+        }
+        holding.quantity = Number(holding.quantity) + quantityNum;
+        holding.frozen_quantity = Number(holding.frozen_quantity) - quantityNum;
+        return await this.holdingRepository.save(holding);
+    }
 }

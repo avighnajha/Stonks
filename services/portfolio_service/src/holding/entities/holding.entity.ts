@@ -15,5 +15,8 @@ export class Holding{
     quantity: number;
 
     @Column({ type: 'decimal', precision: 18, scale: 8, default: 0 })
+    frozen_quantity: number;
+
+    @Column({ type: 'decimal', precision: 18, scale: 8, default: 0 })
     average_buy_price: number;
 }

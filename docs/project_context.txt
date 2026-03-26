@@ -1,0 +1,121 @@
+Project Context: InvestPeople (Market Simulation)
+
+1. High-Level Vision
+
+InvestPeople is a social stock-market platform where "People" are the assets. It is evolving from a static "Shop" into a Dynamic Market Simulation. The goal is to build a functional Order Book Exchange where price discovery is driven by human sentiment (via Twitter) and user/bot trading activity.
+
+2. Technical Stack
+
+Backend: NestJS (Microservices architecture).
+
+Frontend: React (Vite), Tailwind CSS, shadcn/ui.
+
+State Management: Zustand (Auth and global UI state).
+
+Database: PostgreSQL (Managed via Docker).
+
+API Management: Central API Gateway (NestJS) handling JWT validation and proxying.
+
+Infrastructure: Docker Compose for local orchestration.
+
+Communication: REST/HTTP (Moving toward WebSockets for live feeds).
+
+3. Current State of Development (Completed)
+
+Infrastructure: docker-compose.yml is configured for a multi-container setup (PostgreSQL, API Gateway, and 5 microservices: user, wallet, marketplace, trading, portfolio).
+
+API Gateway: Acts as the single entry point (Port 8080). Proxy routing implemented via proxy.controller.ts (GET/POST/etc to appropriate services based on URL prefix: /auth, /wallet, /assets, /trade, /portfolio).
+
+Authentication: User-Service handles JWT generation and validation; Passport JwtStrategy configured across all services for token verification.
+
+Database: PostgreSQL (via Docker) with TypeORM configured for auto-migrations (synchronize: true).
+
+Frontend UI: React + Vite setup with Tailwind CSS and shadcn/ui components. Pages implemented: Index (main router), Explore, Portfolio, Trending, StockDetail, NotFound. Bottom navigation routing established.
+
+Trading Engine: Liquidity Pool model implemented (AMM-style). Trade service uses Constant Product Formula (k = x*y) for pricing. PriceHistory entity tracks quote history.
+
+Data Models in Place:
+  - User entity in user_service
+  - Wallet entity in wallet_service  
+  - Holding entity in portfolio_service
+  - Asset entity in marketplace_service
+  - LiquidityPool & PriceHistory entities in trading_service
+
+4. The Strategic Pivot: Dual-Frontier UI & Order Book
+
+We are shifting from a retail model to a Central Limit Order Book (CLOB).
+
+UI Strategy (Dual-Frontier)
+
+Standard User UI: Finish the existing consumer-focused design (Explore, Portfolio, History). It should feel like a polished financial app.
+
+Admin/God Mode: A high-density /admin route featuring a "Mission Control" terminal for monitoring system health, order book depth, and trade logs.
+
+Market Drivers & Price Discovery
+
+Matching Engine: Matches Bids and Asks. Price is derived from the Last Executed Trade in the Trades table.
+
+Twitter Sentiment Service (Planned): A service to analyze real-world social data (Sentiment Score -1 to 1) to provide signals that influence bot trading behavior and price volatility.
+
+5. Development Roadmap (Priority Order - UPDATED)
+
+
+Phase 1: Frontend Integration
+  - Complete all User UI pages with real API connections (no more mock data)
+  - Implement Order Placement UI (Buy/Sell forms in StockDetail)
+  - Display OrderBook depth chart in StockDetail
+  - Show user's open orders in Portfolio page
+
+Phase 2: Order Book Foundation
+  - Create Order & Trade entities with proper status tracking
+  - Implement matching engine in trading_service (match bids/asks by price-time priority)
+  - Expose /trade/orders (POST to place order, GET to view open orders)
+  - Expose /trade/orderbook (GET to view depth)
+
+Phase 3: Real-Time Updates
+  - Implement WebSocket gateway in api_gateway using socket.io
+  - Push price updates, order fills, and orderbook changes via socket events
+  - Client-side socket listeners in frontend for live price feeds
+
+Phase 4: Admin/God Mode Dashboard
+  - Build /admin route with terminal-style monitoring interface
+  - View system health, trade logs, order book depth, price deviations
+  - Manual order cancellation and emergency controls
+
+Phase 5: Market Drivers & Sentiment Integration
+  - Create Sentiment entity and sentiment_service (or add to trading_service)
+  - Connect Twitter API for real-world sentiment analysis (-1 to 1 score)
+  - Bot trading logic: bots place orders based on sentiment signals
+  - News feed showing sentiment updates that trigger price volatility
+
+6. Known Challenges / Troubleshooting
+
+Real-time Latency: Price updates must be pushed via WebSockets to prevent UI lag. Currently using REST polling only.
+
+Matching Engine: Need to implement proper FIFO + price-time priority matching algorithm for order matching.
+
+Atomic Trades: Ensure Wallet-Service (balance) and Portfolio-Service (ownership) updates are atomic when a trade is matched. Consider saga pattern or distributed transactions.
+
+Gateway WebSocket Support: socket.io integration with JWT auth passthrough needs to be added to api_gateway.
+
+Admin Route Protection: /admin route requires special auth (god mode credentials or role-based access control not yet implemented).
+
+Bot Strategy: Need to define bot trading behavior triggered by sentiment scores.
+
+Error Handling: Improve error propagation and status codes through the microservices chain.
+
+7. Database Schema (Current Implementation)
+
+Implemented Entities:
+  - Users (user_service): id, email, password_hash, created_at
+  - Wallets (wallet_service): id, userId, balance, currency
+  - Holdings (portfolio_service): id, userId, assetId, quantity
+  - Assets (marketplace_service): id, symbol, name, type
+  - LiquidityPool (trading_service): id, asset_id, currency_balance, asset_balance, k (constant product)
+  - PriceHistory (trading_service): id, asset_id, price, timestamp
+
+Still Need to Implement:
+  - Orders: id, userId, assetId, type (BUY/SELL), status (OPEN/FILLED/CANCELLED), limitPrice, totalQuantity, remainingQuantity, createdAt
+  - Trades: id, buyOrderId, sellOrderId, price, quantity, timestamp, status
+  - Sentiment: id, assetId, score, volume, lastUpdated
+  - OrderBook: orderBookId, assetId, bids[], asks[] (normalized)

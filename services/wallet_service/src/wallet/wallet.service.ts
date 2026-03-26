@@ -48,4 +48,32 @@ export class WalletService{
         console.log(`--------> WALLET SERVICE     Og balance ${og_balance} new balance ${wallet.balance}`)
         return this.walletRepository.save(wallet);
     }
+
+    async freezeFunds(userId: string, amount: number): Promise<Wallet>{
+        const wallet = await this.getWallet(userId);
+        const amountNum = Number(amount);
+        if(!wallet){
+            throw new NotFoundException('Wallet not found');
+        }
+        if (wallet.balance < amountNum){
+            throw new BadRequestException('Insufficient balance.')
+        }
+        wallet.balance = Number(wallet.balance) - amountNum;
+        wallet.frozen_balance = Number(wallet.frozen_balance) + amountNum;
+        return this.walletRepository.save(wallet);
+    }
+
+    async unfreezeFunds(userId: string, amount: number): Promise<Wallet>{
+        const wallet = await this.getWallet(userId);
+        const amountNum = Number(amount);
+        if(!wallet){
+            throw new NotFoundException('Wallet not found');
+        }
+        if (wallet.frozen_balance < amountNum){
+            throw new BadRequestException('Insufficient frozen balance.')
+        }
+        wallet.balance = Number(wallet.balance) + amountNum;
+        wallet.frozen_balance = Number(wallet.frozen_balance) - amountNum;
+        return this.walletRepository.save(wallet);
+    }
 }

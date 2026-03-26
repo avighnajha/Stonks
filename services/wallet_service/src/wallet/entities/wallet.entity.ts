@@ -12,6 +12,9 @@ export class Wallet{
     @Column({type: 'decimal', precision: 12, scale: 2, default: 10000})
     balance: number;
 
+    @Column({type: 'decimal', precision: 12, scale: 2, default: 0})
+    frozen_balance: number;
+
     @CreateDateColumn()
     created_at: Date;
 
