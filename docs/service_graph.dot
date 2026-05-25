@@ -1,0 +1,35 @@
+digraph service_graph {
+  rankdir=LR;
+  node [shape=box, style=filled, fillcolor="#efefef"];
+
+  "frontend";
+  "api_gateway";
+  "user_service";
+  "wallet_service";
+  "marketplace_service";
+  "trading_service";
+  "portfolio_service";
+
+  "frontend" -> "api_gateway" [label="HTTP (API requests)"];
+
+  // API Gateway routes (proxy)
+  "api_gateway" -> "user_service" [label="proxy /auth"];
+  "api_gateway" -> "wallet_service" [label="proxy /wallet"];
+  "api_gateway" -> "marketplace_service" [label="proxy /assets"];
+  "api_gateway" -> "trading_service" [label="proxy /trade"];
+  "api_gateway" -> "portfolio_service" [label="proxy /portfolio"];
+
+  // Direct internal calls observed in code
+  "user_service" -> "wallet_service" [label="create wallet (POST /wallet)"];
+  "marketplace_service" -> "trading_service" [label="create pool (POST /trade/create-pool)"];
+  "trading_service" -> "wallet_service" [label="debit/credit wallet"];
+  "trading_service" -> "portfolio_service" [label="update holdings (PATCH /portfolio/update)"];
+  "portfolio_service" -> "trading_service" [label="prices (POST /trade/prices)"];
+
+  // environment routing (gateway maps prefixes to service URLs)
+  "api_gateway" -> "USER_SERVICE_URL" [label="env var"];
+  "api_gateway" -> "WALLET_SERVICE_URL" [label="env var"];
+  "api_gateway" -> "MARKETPLACE_SERVICE_URL" [label="env var"];
+  "api_gateway" -> "TRADING_SERVICE_URL" [label="env var"];
+  "api_gateway" -> "PORTFOLIO_SERVICE_URL" [label="env var"];
+}
