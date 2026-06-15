@@ -90,7 +90,7 @@ export const Layout = ({ children, activeTab, onTabChange }: LayoutProps) => {
         </div>
       </nav>
 
-      <ProfileModal open={isProfileOpen} onOpenChange={setIsProfileOpen} />
+      <ProfileModal open={isProfileOpen} onOpenChange={setIsProfileOpen} onRequestLoginOpen={() => setIsLoginOpen(true)} />
       <LoginModal open={isLoginOpen} onOpenChange={setIsLoginOpen}/>
     </div>
   );

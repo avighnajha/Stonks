@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 interface ProfileModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onRequestLoginOpen?: () => void;
 }
 
 export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
@@ -22,7 +23,7 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
     imageLink: ''
   });
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
 
   const userData = {
     name: user?.name || 'User',
@@ -166,6 +167,46 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
               </CardContent>
             </Card>
           )}
+
+          {/* Actions */}
+          <div className="space-y-2">
+            {isAuthenticated ? (
+              <div className="flex space-x-2">
+                <Button
+                  className="w-full bg-destructive"
+                  onClick={async () => {
+                    await logout();
+                    onOpenChange(false);
+                    toast({ title: 'Logged out', description: 'You have been signed out' });
+                  }}
+                >
+                  Logout
+                </Button>
+              </div>
+            ) : (
+              <div className="flex space-x-2">
+                <Button
+                  className="w-1/2 bg-gradient-primary"
+                  onClick={() => {
+                    onOpenChange(false);
+                    onRequestLoginOpen && onRequestLoginOpen();
+                  }}
+                >
+                  Sign In
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-1/2"
+                  onClick={() => {
+                    onOpenChange(false);
+                    onRequestLoginOpen && onRequestLoginOpen();
+                  }}
+                >
+                  Register
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
