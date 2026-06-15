@@ -1,57 +1,88 @@
 import { TrendingUp, TrendingDown, DollarSign, PieChart, BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import mbappeStock from '@/assets/mbappe-stock.jpg';
-import elonStock from '@/assets/elon-stock.jpg';
-import aiStock from '@/assets/ai-stock.jpg';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import axiosInstance from '@/api/axiosInstance';
 
-// Mock portfolio data
-const portfolioData = {
-  totalValue: 23580.75,
-  totalInvested: 18500.00,
-  totalGainLoss: 5080.75,
-  totalGainLossPercent: 27.46,
-  availableBalance: 15420.50,
-  positions: [
-    {
-      id: '1',
-      name: 'Kylian Mbappé',
-      image: mbappeStock,
-      shares: 35.5,
-      avgPrice: 128.30,
-      currentPrice: 142.50,
-      invested: 4554.65,
-      currentValue: 5058.75,
-      gainLoss: 504.10,
-      gainLossPercent: 11.06
-    },
-    {
-      id: '2',
-      name: 'Elon Musk', 
-      image: elonStock,
-      shares: 18.2,
-      avgPrice: 234.80,
-      currentPrice: 256.75,
-      invested: 4273.36,
-      currentValue: 4672.85,
-      gainLoss: 399.49,
-      gainLossPercent: 9.35
-    },
-    {
-      id: '3',
-      name: 'Artificial Intelligence',
-      image: aiStock,
-      shares: 52.8,
-      avgPrice: 165.20,
-      currentPrice: 189.20,
-      invested: 8722.56,
-      currentValue: 9989.76,
-      gainLoss: 1267.20,
-      gainLossPercent: 14.53
-    }
-  ]
+type Position = {
+  id: string;
+  name: string;
+  image?: string;
+  shares: number;
+  avgPrice: number;
+  currentPrice: number;
+  invested: number;
+  currentValue: number;
+  gainLoss: number;
+  gainLossPercent: number;
+};
+
+type PortfolioData = {
+  totalValue: number;
+  totalInvested: number;
+  totalGainLoss: number;
+  totalGainLossPercent: number;
+  availableBalance: number;
+  positions: Position[];
+};
+
+const emptyPortfolio: PortfolioData = {
+  totalValue: 0,
+  totalInvested: 0,
+  totalGainLoss: 0,
+  totalGainLossPercent: 0,
+  availableBalance: 0,
+  positions: []
 };
 
 export const Portfolio = () => {
+  const { user } = useAuth();
+  const [portfolioData, setPortfolioData] = useState<PortfolioData>(emptyPortfolio);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchPortfolio = async () => {
+      if (!user?.id) return;
+      setLoading(true);
+      try {
+        const res = await axiosInstance.get(`/portfolio`);
+        const data = res.data || {};
+        if (!mounted) return;
+        // map data defensively
+        const mapped: PortfolioData = {
+          totalValue: data.totalValue ?? 0,
+          totalInvested: data.totalInvested ?? 0,
+          totalGainLoss: data.totalGainLoss ?? 0,
+          totalGainLossPercent: data.totalGainLossPercent ?? 0,
+          availableBalance: data.availableBalance ?? data.cash ?? 0,
+          positions: (data.positions || []).map((p: any) => ({
+            id: p.id || p.assetId,
+            name: p.name || p.assetName,
+            image: p.image || '',
+            shares: p.shares ?? p.quantity ?? 0,
+            avgPrice: p.avgPrice ?? p.costBasis ?? 0,
+            currentPrice: p.currentPrice ?? p.price ?? 0,
+            invested: p.invested ?? 0,
+            currentValue: p.currentValue ?? ((p.currentPrice ?? p.price ?? 0) * (p.shares ?? p.quantity ?? 0)),
+            gainLoss: p.gainLoss ?? 0,
+            gainLossPercent: p.gainLossPercent ?? 0
+          }))
+        };
+        setPortfolioData(mapped);
+      } catch (err) {
+        // keep empty
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPortfolio();
+    const onUpdated = () => { fetchPortfolio(); };
+    window.addEventListener('portfolio:updated', onUpdated);
+    return () => { mounted = false; };
+  }, [user]);
+
   const isPositiveTotal = portfolioData.totalGainLoss >= 0;
 
   return (

@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import tradingApi from '@/api/trading.api';
+import axiosInstance from '@/api/axiosInstance';
 
 interface StockDetailProps {
   stock: any;
@@ -51,23 +53,67 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
   };
 
   const handleTrade = () => {
-    const amount = parseFloat(tradeAmount);
-    if (!amount || amount <= 0) {
-      toast({
-        title: "Invalid Amount",
-        description: "Please enter a valid amount",
-        variant: "destructive"
-      });
-      return;
-    }
+    (async () => {
+      const amount = parseFloat(tradeAmount);
+      if (!amount || amount <= 0) {
+        toast({
+          title: 'Invalid Amount',
+          description: 'Please enter a valid amount',
+          variant: 'destructive'
+        });
+        return;
+      }
 
-    toast({
-      title: `${tradeType === 'buy' ? 'Bought' : 'Sold'}!`,
-      description: `${tradeType === 'buy' ? 'Purchased' : 'Sold'} $${amount} of ${stock.name}`,
-    });
-    
-    setTradeAmount('');
+      try {
+        if (tradeType === 'buy') {
+          await tradingApi.buyAsset(stock.id, amount);
+        } else {
+          await tradingApi.sellAsset(stock.id, amount);
+        }
+
+        // Refresh portfolio and wallet, then notify listeners
+        try {
+          await axiosInstance.get('/portfolio');
+        } catch (e) {
+          // ignore
+        }
+
+        try {
+          const w = await axiosInstance.get('/wallet/balance');
+          const wallet = w.data;
+          const currentUserRaw = localStorage.getItem('user');
+          if (currentUserRaw) {
+            const currentUser = JSON.parse(currentUserRaw);
+            currentUser.balance = wallet?.balance ?? currentUser.balance;
+            localStorage.setItem('user', JSON.stringify(currentUser));
+          }
+        } catch (e) {
+          // ignore
+        }
+
+        // Emit event so Portfolio can refresh if open
+        window.dispatchEvent(new CustomEvent('portfolio:updated'));
+
+        toast({
+          title: `${tradeType === 'buy' ? 'Bought' : 'Sold'}!`,
+          description: `${tradeType === 'buy' ? 'Purchased' : 'Sold'} $${amount} of ${stock.name}`,
+        });
+
+        setTradeAmount('');
+      } catch (err: any) {
+        toast({
+          title: 'Trade failed',
+          description: err?.response?.data?.message || err?.message || 'Please try again',
+          variant: 'destructive'
+        });
+      }
+    })();
   };
+
+  const isUuid = (id: any) => {
+    if (!id || typeof id !== 'string') return false;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+  }
 
   if (!stock) return null;
 
@@ -247,10 +293,13 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
                 ? 'bg-gradient-success hover:opacity-90' 
                 : 'bg-gradient-danger hover:opacity-90'
             } text-white`}
-            disabled={!tradeAmount}
+            disabled={!tradeAmount || !isUuid(stock.id)}
           >
             {tradeType === 'buy' ? 'Buy' : 'Sell'} {stock.name}
           </Button>
+          {!isUuid(stock.id) && (
+            <p className="text-sm text-muted-foreground mt-2">Trading disabled for this item (invalid asset id)</p>
+          )}
         </CardContent>
       </Card>
     </div>

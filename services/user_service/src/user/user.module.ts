@@ -10,7 +10,7 @@ import { HttpModule } from '@nestjs/axios';
     imports: [
         TypeOrmModule.forFeature([User]),
         JwtModule.register({
-            secret: "Super_secret_key",
+            secret: process.env.JWT_SECRET!,
             signOptions: {expiresIn:"1h"}
         }),
         HttpModule

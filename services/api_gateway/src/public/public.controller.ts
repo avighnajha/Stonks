@@ -26,8 +26,8 @@ export class PublicController {
     }
   }
 
-  // Handles GET /assets and GET /assets/:id
-  @Get(['/', '/:id'])
+  // Handles GET /assets, GET /assets/approved and GET /assets/:id
+  @Get(['/', '/approved', '/:id'])
   async assetRequest(@Request() req, @Response() res) {
     const { method, originalUrl, headers, body } = req;
     try {

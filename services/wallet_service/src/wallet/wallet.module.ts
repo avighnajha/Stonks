@@ -9,7 +9,7 @@ import { Wallet } from './entities/wallet.entity';
     imports: [
         TypeOrmModule.forFeature([Wallet]),
         JwtModule.register({
-            secret: "Super_secret_key",
+            secret: process.env.JWT_SECRET!,
             signOptions: {expiresIn:"1h"}
         })
     ],

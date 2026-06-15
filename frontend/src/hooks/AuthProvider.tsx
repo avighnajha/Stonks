@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, ReactNode } from 'react';
 import { loginUser, registerUser, logoutUser } from '@/api/auth.api';
+import { getWalletBalance } from '@/api/wallet.api';
 
 export interface User {
   id: string;
@@ -7,6 +8,7 @@ export interface User {
   email: string;
   balance?: number;
   totalInvested?: number;
+  role?: string;
 }
 
 export interface AuthContextType {
@@ -32,13 +34,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const token = localStorage.getItem('authToken');
         const storedUser = localStorage.getItem('user');
-        
+
         if (token && storedUser) {
           // Restore user from localStorage
           setUser(JSON.parse(storedUser));
         } else if (token && !storedUser) {
-          // Token exists but no user data - shouldn't happen, clear token
-          localStorage.removeItem('authToken');
+          // Token exists but no user data - attempt to fetch current user
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/auth/me`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const fetchedUser = data.user || data;
+              // attempt to fetch wallet balance and attach to user
+              try {
+                const balance = await getWalletBalance();
+                fetchedUser.balance = balance;
+              } catch (e) {
+                // ignore wallet fetch errors
+              }
+              setUser(fetchedUser);
+              localStorage.setItem('user', JSON.stringify(fetchedUser));
+            } else {
+              // invalid token
+              localStorage.removeItem('authToken');
+            }
+          } catch (err) {
+            localStorage.removeItem('authToken');
+          }
         }
       } catch (err) {
         console.error('Auth initialization error:', err);
@@ -56,18 +83,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await loginUser({ email, password });
-      
+      // Debug
+      // eslint-disable-next-line no-console
+      console.debug('[AuthProvider] login response', response);
+      if (response.token) {
+        localStorage.setItem('authToken', response.token);
+      }
+      if (response.refreshToken) {
+        localStorage.setItem('refreshToken', response.refreshToken);
+      }
+
+      const walletBalance = await (async () => {
+        try {
+          return await getWalletBalance();
+        } catch (e) {
+          return response.user?.balance || 0;
+        }
+      })();
+
       const userData: User = {
-        id: response.user?.id || '1',
-        name: response.user?.name || email.split('@')[0],
+        id: response.user?.id || response.user?.userId || '1',
+        name: response.user?.name || response.user?.username || email.split('@')[0],
         email: response.user?.email || email,
-        balance: response.user?.balance || 0,
-        totalInvested: 0
+        balance: walletBalance,
+        totalInvested: 0,
+        role: response.user?.role || response.user?.roles || undefined
       };
-      
+
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
     } catch (err: any) {
@@ -82,18 +127,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (name: string, email: string, password: string) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await registerUser({ username: name, email, password });
-      
+      // Debug
+      // eslint-disable-next-line no-console
+      console.debug('[AuthProvider] register response', response);
+      if (response.token) {
+        localStorage.setItem('authToken', response.token);
+      }
+      if (response.refreshToken) {
+        localStorage.setItem('refreshToken', response.refreshToken);
+      }
+
+      const walletBalanceReg = await (async () => {
+        try {
+          return await getWalletBalance();
+        } catch (e) {
+          return response.user?.balance || 0;
+        }
+      })();
+
       const userData: User = {
-        id: response.user?.id || '1',
-        name: response.user?.name || name,
+        id: response.user?.id || response.user?.userId || '1',
+        name: response.user?.name || response.user?.username || name,
         email: response.user?.email || email,
-        balance: response.user?.balance || 0,
-        totalInvested: 0
+        balance: walletBalanceReg,
+        totalInvested: 0,
+        role: response.user?.role || response.user?.roles || undefined
       };
-      
+
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
     } catch (err: any) {
@@ -107,7 +170,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     setLoading(true);
-    
+
     try {
       // Call logout endpoint
       await logoutUser();

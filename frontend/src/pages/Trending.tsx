@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Flame, Clock } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,19 @@ import mbappeStock from '@/assets/mbappe-stock.jpg';
 import haterStock from '@/assets/hater-stock.jpg';
 import elonStock from '@/assets/elon-stock.jpg';
 import aiStock from '@/assets/ai-stock.jpg';
+import axiosInstance from '@/api/axiosInstance';
+
+type Asset = {
+  id: string;
+  name: string;
+  image?: string;
+  price?: number;
+  change?: number;
+  changePercent?: number;
+  data?: number[];
+  volume?: number;
+  reason?: string;
+};
 
 const trendingData = {
   hottest: [
@@ -65,8 +78,41 @@ interface TrendingProps {
 
 export const Trending = ({ onStockClick }: TrendingProps) => {
   const [selectedTab, setSelectedTab] = useState<'hot' | 'declining'>('hot');
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const currentData = selectedTab === 'hot' ? trendingData.hottest : trendingData.declining;
+  useEffect(() => {
+    let mounted = true;
+    const fetchAssets = async () => {
+      setLoading(true);
+      try {
+        const res = await axiosInstance.get('/assets/approved');
+        const data = res.data?.assets || res.data || [];
+        if (!mounted) return;
+        const mapped: Asset[] = data.map((a: any, idx: number) => ({
+          id: a.id || a.assetId || String(idx),
+          name: a.name || a.title || 'Unknown',
+          image: a.image || '',
+          price: a.price || a.lastPrice || 0,
+          change: a.change || 0,
+          changePercent: a.changePercent || 0,
+          data: a.history || a.prices || [0],
+          volume: a.volume || 0,
+          reason: a.reason || a.description || ''
+        }));
+        setAssets(mapped);
+      } catch (err) {
+        // ignore - keep mock data
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAssets();
+    return () => { mounted = false; };
+  }, []);
+
+  const currentData = selectedTab === 'hot' ? assets.filter(a => (a.changePercent || 0) >= 0) : assets.filter(a => (a.changePercent || 0) < 0);
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">

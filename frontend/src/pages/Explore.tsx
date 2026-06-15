@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -7,46 +7,37 @@ import mbappeStock from '@/assets/mbappe-stock.jpg';
 import haterStock from '@/assets/hater-stock.jpg';
 import elonStock from '@/assets/elon-stock.jpg';
 import aiStock from '@/assets/ai-stock.jpg';
+import axiosInstance from '@/api/axiosInstance';
 
-// Mock data for trending stocks
-const trendingStocks = [
+// fallback mapping for assets without images
+const defaultImages: Record<string, string> = {
+  'Kylian Mbappé': mbappeStock,
+  'Being a Hater': haterStock,
+  'Elon Musk': elonStock,
+  'Artificial Intelligence': aiStock
+};
+
+const trendingStocksFallback = [
   {
-    id: '1',
+    id: '11111111-1111-1111-1111-111111111111',
     name: 'Kylian Mbappé',
     image: mbappeStock,
-    price: 142.50,
-    change: 5.20,
+    price: 142.5,
+    change: 5.2,
     changePercent: 3.79,
     data: [135, 138, 140, 139, 141, 143, 142.5, 145, 144, 142.5]
-  },
-  {
-    id: '2', 
-    name: 'Being a Hater',
-    image: haterStock,
-    price: 89.30,
-    change: -2.10,
-    changePercent: -2.30,
-    data: [92, 91, 90, 89.5, 88, 89, 90.5, 89.8, 89.3, 89.3]
-  },
-  {
-    id: '3',
-    name: 'Elon Musk',
-    image: elonStock,
-    price: 256.75,
-    change: 12.45,
-    changePercent: 5.10,
-    data: [240, 245, 250, 248, 252, 255, 258, 260, 257, 256.75]
-  },
-  {
-    id: '4',
-    name: 'Artificial Intelligence',
-    image: aiStock,
-    price: 189.20,
-    change: 8.90,
-    changePercent: 4.93,
-    data: [175, 180, 185, 187, 190, 188, 189, 192, 190, 189.2]
   }
 ];
+
+type Asset = {
+  id: string;
+  name: string;
+  image?: string;
+  price?: number;
+  change?: number;
+  changePercent?: number;
+  data?: number[];
+};
 
 interface ExploreProps {
   onStockClick: (stock: any) => void;
@@ -54,14 +45,43 @@ interface ExploreProps {
 
 export const Explore = ({ onStockClick }: ExploreProps) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchAssets = async () => {
+      setLoading(true);
+      try {
+        const res = await axiosInstance.get('/assets/approved');
+        const data = res.data?.assets || res.data || [];
+        if (!mounted) return;
+        const mapped: Asset[] = data.map((a: any) => ({
+          id: a.id || a.assetId || String(a.name),
+          name: a.name || a.title || 'Unknown',
+          image: a.image || defaultImages[a.name] || '',
+          price: a.price || a.lastPrice || 0,
+          change: a.change || 0,
+          changePercent: a.changePercent || 0,
+          data: a.history || a.prices || [0]
+        }));
+        setAssets(mapped.length ? mapped : trendingStocksFallback);
+      } catch (err) {
+        setAssets(trendingStocksFallback);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAssets();
+    return () => { mounted = false; };
+  }, []);
 
   const filteredStocks = useMemo(() => {
-    if (!searchQuery.trim()) return trendingStocks;
-    
-    return trendingStocks.filter(stock =>
-      stock.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [searchQuery]);
+    const list = assets.length ? assets : trendingStocksFallback;
+    if (!searchQuery.trim()) return list;
+    return list.filter(stock => stock.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [searchQuery, assets]);
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
@@ -110,13 +130,17 @@ export const Explore = ({ onStockClick }: ExploreProps) => {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {filteredStocks.map((stock) => (
-              <StockCard 
-                key={stock.id} 
-                stock={stock} 
-                onClick={onStockClick}
-              />
-            ))}
+            {loading ? (
+              <div className="text-center py-12 text-muted-foreground">Loading...</div>
+            ) : (
+              filteredStocks.map((stock) => (
+                <StockCard 
+                  key={stock.id} 
+                  stock={stock as any} 
+                  onClick={onStockClick}
+                />
+              ))
+            )}
           </div>
         )}
       </div>
