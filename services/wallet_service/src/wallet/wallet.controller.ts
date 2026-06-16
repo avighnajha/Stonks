@@ -14,6 +14,11 @@ class UpdateBalanceDto{
     userId: string
     amount: number
 }
+class SettleTradeDto {
+    buyerId: string;
+    sellerId: string;
+    amount: number;
+}
 
 @Controller('wallet')
 export class WalletController {
@@ -49,5 +54,26 @@ export class WalletController {
     credit(@Body(ValidationPipe) updateBalanceDto: UpdateBalanceDto){
         const {userId, amount} = updateBalanceDto;
         return this.walletService.changeBalance(userId, amount, false)
+    }
+
+    @Post('freeze')
+    @UseGuards(InternalApiKeyGuard)
+    freeze(@Body(ValidationPipe) updateBalanceDto: UpdateBalanceDto){
+        const { userId, amount } = updateBalanceDto;
+        return this.walletService.freezeFunds(userId, amount);
+    }
+
+    @Post('unfreeze')
+    @UseGuards(InternalApiKeyGuard)
+    unfreeze(@Body(ValidationPipe) updateBalanceDto: UpdateBalanceDto){
+        const { userId, amount } = updateBalanceDto;
+        return this.walletService.unfreezeFunds(userId, amount);
+    }
+
+    @Post('settle')
+    @UseGuards(InternalApiKeyGuard)
+    settle(@Body(ValidationPipe) settleTradeDto: SettleTradeDto) {
+        const { buyerId, sellerId, amount } = settleTradeDto;
+        return this.walletService.settleTrade(buyerId, sellerId, amount);
     }
 }

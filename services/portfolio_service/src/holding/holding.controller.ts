@@ -12,6 +12,19 @@ class UpdateholdingsDto {
     tradePrice: number;
 }
 
+class FreezeHoldingsDto {
+    userId: string;
+    assetId: string;
+    quantity: number;
+}
+
+class SettlePortfolioDto {
+    buyerId: string;
+    sellerId: string;
+    assetId: string;
+    quantity: number;
+}
+
 @Controller('portfolio')
 export class HoldingController{
     constructor(private readonly holdingService: HoldingService){}
@@ -29,5 +42,29 @@ export class HoldingController{
         const {userId, assetId, quantity, tradePrice} = updateHoldingsDto;
         console.log('------>PORTFOLIO SERVICE          Updating portolio for: ', userId, quantity, tradePrice)
         return this.holdingService.updateHoldings(userId, assetId, quantity, tradePrice);
+    }
+
+    @Post('freeze')
+    @UseGuards(InternalApiKeyGuard)
+    freezeHoldings(@Body(ValidationPipe) freezeDto: FreezeHoldingsDto){
+        const { userId, assetId, quantity } = freezeDto;
+        console.log('------>PORTFOLIO SERVICE          Freezing holdings for: ', userId, assetId, quantity)
+        return this.holdingService.freezeHoldings(userId, assetId, quantity);
+    }
+
+    @Post('unfreeze')
+    @UseGuards(InternalApiKeyGuard)
+    unfreezeHoldings(@Body(ValidationPipe) freezeDto: FreezeHoldingsDto){
+        const { userId, assetId, quantity } = freezeDto;
+        console.log('------>PORTFOLIO SERVICE          Unfreezing holdings for: ', userId, assetId, quantity)
+        return this.holdingService.unfreezeHoldings(userId, assetId, quantity);
+    }
+
+    @Post('settle')
+    @UseGuards(InternalApiKeyGuard)
+    settle(@Body(ValidationPipe) settleDto: SettlePortfolioDto){
+        const { buyerId, sellerId, assetId, quantity } = settleDto;
+        console.log('------>PORTFOLIO SERVICE          Settling holdings for: ', buyerId, sellerId, assetId, quantity)
+        return this.holdingService.settleTrade(buyerId, sellerId, assetId, quantity);
     }
 }

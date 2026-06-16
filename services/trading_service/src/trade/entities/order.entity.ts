@@ -1,29 +1,41 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from "typeorm";
+
+export enum OrderSide { BUY = 'BUY', SELL = 'SELL' }
+export enum OrderType { LIMIT = 'LIMIT', MARKET = 'MARKET' }
+export enum OrderStatus { OPEN = 'OPEN', PARTIALLY_FILLED = 'PARTIALLY_FILLED', FILLED = 'FILLED', CANCELLED = 'CANCELLED' }
 
 @Entity('orders')
-export class Order{
+export class Order {
     @PrimaryGeneratedColumn('uuid')
-    id:string
+    id: string;
 
-    @Column({type:'uuid'})
-    user_id:string;
+    @Column({ type: 'uuid' })
+    user_id: string;
 
-    @Column({type:'uuid'})
-    asset_id:string;
+    @Column({ type: 'uuid' })
+    asset_id: string;
 
-    @Column({type:'enum', enum: ['limit', 'market']})
-    type: 'limit' | 'market';
+    @Column({ type: 'enum', enum: OrderSide })
+    side: OrderSide;
 
-    @Column({type:'enum', enum: ['buy', 'sell']})
-    side: 'buy' | 'sell';
+    @Column({ type: 'enum', enum: OrderType })
+    type: OrderType;
 
-    @Column({type:'decimal', default: 10000})
-    asset_balance:number;
+    @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.OPEN })
+    status: OrderStatus;
 
-    @Column({type:'decimal', default: 1000000})
-    currency_balance:number;
+    @Column({ type: 'decimal', precision: 12, scale: 2 })
+    price: number;
 
-    get k(): number {
-    return Number(this.currency_balance) * Number(this.asset_balance);
-  }
+    @Column({ type: 'decimal', precision: 12, scale: 4 })
+    initial_quantity: number;
+
+    @Column({ type: 'decimal', precision: 12, scale: 4 })
+    remaining_quantity: number;
+
+    @CreateDateColumn()
+    created_at: Date;
+
+    @UpdateDateColumn()
+    updated_at: Date;
 }

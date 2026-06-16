@@ -1,7 +1,7 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common";
+import { InjectRepository, InjectEntityManager } from "@nestjs/typeorm";
 import { Holding } from "./entities/holding.entity";
-import { Repository } from "typeorm";
+import { Repository, EntityManager } from "typeorm";
 import { ArgumentOutOfRangeError, firstValueFrom } from "rxjs";
 import { HttpService } from "@nestjs/axios";
 
@@ -20,6 +20,8 @@ export class HoldingService{
         @InjectRepository(Holding)
         private readonly holdingRepository: Repository<Holding>,
         private readonly httpService: HttpService
+        , @InjectEntityManager()
+        private readonly entityManager: EntityManager
     ){}
 
     async getPortfolio(userId: string): Promise<PortfolioHoldingDto[]>{
@@ -138,5 +140,49 @@ export class HoldingService{
         holding.quantity = Number(holding.quantity) + quantityNum;
         holding.frozen_quantity = Number(holding.frozen_quantity) - quantityNum;
         return await this.holdingRepository.save(holding);
+    }
+
+    async settleTrade(buyerId: string, sellerId: string, assetId: string, quantity: number) {
+        return this.entityManager.transaction(async (transactionalEntityManager) => {
+            const sellerHolding = await transactionalEntityManager.findOne(Holding, {
+                where: { user_id: sellerId, asset_id: assetId },
+                lock: { mode: 'pessimistic_write' }
+            });
+
+            const buyerHolding = await transactionalEntityManager.findOne(Holding, {
+                where: { user_id: buyerId, asset_id: assetId },
+                lock: { mode: 'pessimistic_write' }
+            });
+
+            if (!sellerHolding) {
+                throw new NotFoundException('Seller holding not found for asset.');
+            }
+
+            const qty = Number(quantity);
+            if (Number(sellerHolding.frozen_quantity) < qty) {
+                throw new BadRequestException('Seller does not have enough frozen holdings to settle.');
+            }
+
+            // Deduct from seller frozen, add to buyer available
+            sellerHolding.frozen_quantity = Number(sellerHolding.frozen_quantity) - qty;
+
+            if (buyerHolding) {
+                buyerHolding.quantity = Number(buyerHolding.quantity) + qty;
+                await transactionalEntityManager.save(buyerHolding);
+            } else {
+                const newHolding = transactionalEntityManager.create(Holding, {
+                    user_id: buyerId,
+                    asset_id: assetId,
+                    quantity: qty,
+                    frozen_quantity: 0,
+                    average_buy_price: 0
+                });
+                await transactionalEntityManager.save(newHolding);
+            }
+
+            await transactionalEntityManager.save(sellerHolding);
+
+            return { message: 'Trade settled successfully in portfolio.' };
+        });
     }
 }

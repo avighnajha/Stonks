@@ -1,43 +1,35 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Request, UseGuards, ValidationPipe } from "@nestjs/common";
 import { TradeService } from "./trade.service";
 import { AuthGuard } from "@nestjs/passport";
-import { IsArray, IsNumber, IsPositive, IsUUID } from "class-validator";
+import { IsArray, IsEnum, IsNumber, IsPositive, IsUUID } from "class-validator";
 import { InternalApiKeyGuard } from "src/auth/api_key.guard";
-import { create } from "domain";
-
+import { OrderType } from "./entities/order.entity";
 
 class TradeDto {
     @IsNumber()
     @IsPositive()
-    assetAmount: number
+    assetAmount: number;
+
+    @IsNumber()
+    @IsPositive()
+    price: number;
+
+    @IsEnum(OrderType)
+    type: OrderType;
 }
 
 class GetPricesDto {
-  // Ensures the incoming body has a property 'assetIds'
-  @IsArray()
-  @IsUUID('4', { each: true })
-  assetIds: string[];
-}
-
-class CreatePoolDto {
-    assetId: string
+    @IsArray()
+    @IsUUID('4', { each: true })
+    assetIds: string[];
 }
 
 @Controller('trade')
-export class TradeController{
+export class TradeController {
     constructor(private readonly tradeService: TradeService){}
-    
-    @Post('create-pool')
-    @UseGuards(InternalApiKeyGuard)
-    async createPool(@Body(ValidationPipe) createPoolDto: CreatePoolDto ){
-        const {assetId} = createPoolDto;
-        console.log('Creating liq pool for: ', assetId);
-        return this.tradeService.createPool(assetId);
-    }
 
     @Get('quote/:assetId')
     async getQuote(@Param('assetId', ParseUUIDPipe) assetId: string){
-        console.log("Quoting: ", assetId)
         return this.tradeService.getQuote(assetId);
     }
 
@@ -53,24 +45,24 @@ export class TradeController{
         @Param('assetId', ParseUUIDPipe) assetId: string
     ){
         const userId = req.user.userId;
-        const {assetAmount} = tradeDto;
-        return this.tradeService.executeBuy(assetId, userId, assetAmount)
+        const { assetAmount, price, type } = tradeDto;
+        return this.tradeService.placeOrder(assetId, userId, 'BUY', type, price, assetAmount);
     }
 
     @Post('sell/:assetId')
     @UseGuards(AuthGuard('jwt'))
     sell(@Request() req,
-        @Body(ValidationPipe) tradeDto:TradeDto,
-        @Param('assetId', ParseUUIDPipe) assetId:string
+        @Body(ValidationPipe) tradeDto: TradeDto,
+        @Param('assetId', ParseUUIDPipe) assetId: string
     ){
         const userId = req.user.userId;
-        const { assetAmount} = tradeDto;
-        return this.tradeService.executeSell(assetId, userId, assetAmount)
+        const { assetAmount, price, type } = tradeDto;
+        return this.tradeService.placeOrder(assetId, userId, 'SELL', type, price, assetAmount);
     }
 
     @Post('prices')
     @UseGuards(InternalApiKeyGuard)
     getPrices(@Body(ValidationPipe) getPricesDto: GetPricesDto){
-        return this.tradeService.getPrices(getPricesDto.assetIds)
+        return this.tradeService.getPrices(getPricesDto.assetIds);
     }
 }

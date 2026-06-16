@@ -1,296 +1,181 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { EntityManager, In, Repository } from "typeorm";
-import { LiquidityPool } from "./entities/liquidity_pool.entity";
 import { firstValueFrom } from "rxjs";
 import { HttpService } from "@nestjs/axios";
 import { PriceHistory } from "./entities/price-history.entity";
+import { Order, OrderSide, OrderStatus, OrderType } from "./entities/order.entity";
+import { Trade } from "./entities/trade.entity";
 
 
 @Injectable()
 export class TradeService {
-    private readonly walletDebitUrl = 'http://wallet_service:3002/wallet/debit';
-    private readonly walletCreditUrl = 'http://wallet_service:3002/wallet/credit';
-    private readonly portfolioServiceUrl = 'http://portfolio_service:3005/portfolio/update'
+    // Use environment-provided service URLs when available, otherwise fall back to Docker service hostnames.
+    private readonly walletBase = process.env.WALLET_SERVICE_URL || 'http://wallet_service:3002';
+    private readonly portfolioBase = process.env.PORTFOLIO_SERVICE_URL || 'http://portfolio_service:3005';
+    private readonly walletDebitUrl = `${this.walletBase}/wallet/debit`;
+    private readonly walletCreditUrl = `${this.walletBase}/wallet/credit`;
+    private readonly portfolioServiceUrl = `${this.portfolioBase}/portfolio/update`;
+    private readonly walletFreezeUrl = `${this.walletBase}/wallet/freeze`;
+    private readonly portfolioFreezeUrl = `${this.portfolioBase}/portfolio/freeze`;
+    private readonly walletSettleUrl = `${this.walletBase}/wallet/settle`;
+    private readonly portfolioSettleUrl = `${this.portfolioBase}/portfolio/settle`;
     constructor(
-        @InjectRepository(LiquidityPool)
-        private readonly liqpoolRepository: Repository<LiquidityPool>,
+        @InjectRepository(Order)
+        private readonly orderRepository: Repository<Order>,
+        @InjectRepository(Trade)
+        private readonly tradeRepository: Repository<Trade>,
         @InjectRepository(PriceHistory)
         private readonly priceHistoryRepository: Repository<PriceHistory>,
         private readonly httpService: HttpService,
         private readonly entityManager: EntityManager,
     ){}
-    private async findPool(assetId: string){
-        const pool = await this.liqpoolRepository.findOne({where: {asset_id: assetId}})
-        if(!pool){
-            throw new NotFoundException('Liquidity pool not found')
-        }
-        return pool;
-    }
-
-    async createPool(assetId: string){
-        const existingPool = await this.liqpoolRepository.findOne({ where: { asset_id: assetId } });
-        if (existingPool) {
-            throw new BadRequestException(`A liquidity pool for asset ${assetId} already exists.`);
-        }
-        const newPool = this.liqpoolRepository.create({
-            asset_id: assetId,
-            currency_balance: 1000000,
-            asset_balance: 10000
-        })
-        return await this.liqpoolRepository.save(newPool);
-    }
 
     async getQuote(assetId: string): Promise<{price: number}>{
-        const pool = await this.findPool(assetId);
-        const price = pool.currency_balance/pool.asset_balance;
-        return {price};
+        const lastTrade = await this.tradeRepository.findOne({
+            where: { asset_id: assetId },
+            order: { timestamp: 'DESC' }
+        });
+        return { price: lastTrade ? lastTrade.price : 0 };
     }
 
     async getHistory(assetId: string){
-        return this.priceHistoryRepository.find(
-            {
-                where:{asset_id: assetId},
-                order: {timestamp: 'ASC'}});
-    }
-
-    async executeBuy(assetId: string, userId: string, stockAmount: number) {
-    // Wrap the entire operation in a database transaction for safety.
-    return this.entityManager.transaction(async (transactionalEntityManager) => {
-        //Find the pool and LOCK THE ROW.
-        const pool = await transactionalEntityManager.findOne(LiquidityPool, {
-            where: { asset_id: assetId },
-            lock: { mode: 'pessimistic_write' },
+        return this.priceHistoryRepository.find({
+            where:{ asset_id: assetId },
+            order: { timestamp: 'ASC' }
         });
-
-        if (!pool) {
-            throw new NotFoundException('Liquidity pool not found for this asset.');
-        }
-
-        const currentStockBalance = Number(pool.asset_balance);
-        const currentCashBalance = Number(pool.currency_balance);
-        const stockToBuy = Number(stockAmount);
-
-        if (currentStockBalance <= stockToBuy) {
-            throw new BadRequestException('Not enough liquidity in the pool.');
-        }
-
-        //Calculate the cost of the trade using AMM formula
-        const k = currentCashBalance * currentStockBalance;
-        const newStockBalance = currentStockBalance - stockToBuy;
-        const newCashBalance = k / newStockBalance;
-        const cost = newCashBalance - currentCashBalance;
-        const pricePerShare = cost / stockToBuy;
-
-        //DEBIT THE WALLET FIRST
-        try {
-            await firstValueFrom(
-                this.httpService.post(
-                    this.walletDebitUrl,
-                    { userId: userId, amount: cost }, 
-                    { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
-                )
-            );
-        } catch (error) {
-            throw new BadRequestException(error.response?.data?.message || 'Wallet debit failed.');
-        }
-        
-        // IF PAYMENT SUCCEEDS, UPDATE THE PORTFOLIO
-        try {
-             await firstValueFrom(
-                this.httpService.patch(
-                    this.portfolioServiceUrl,
-                    {
-                        userId: userId,
-                        assetId: assetId,
-                        quantity: stockToBuy, // Positive for a buy
-                        tradePrice: pricePerShare
-                    },
-                    { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
-                )
-            );
-        } catch (error) {
-             // If this fails, the whole transaction will be rolled back automatically.
-             await firstValueFrom(
-                this.httpService.patch(
-                this.walletCreditUrl,
-                { userId: userId, amount: cost },
-                { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
-                )
-            );
-             throw new Error('Failed to update portfolio. Trade has been rolled back.');
-        }
-
-        //UPDATE THE LIQUIDITY POOL
-        pool.asset_balance = currentStockBalance - stockToBuy;
-        pool.currency_balance = currentCashBalance + cost;
-        await transactionalEntityManager.save(pool);
-
-        const pricePoint = this.priceHistoryRepository.create(
-            {
-                asset_id: assetId,
-                price: pricePerShare
-        })
-        await transactionalEntityManager.save(pricePoint)
-
-        return { message: `Trade executed successfully! ${stockAmount} stocks of Asset ${assetId} bought.` };
-    });
     }
 
-    async executeSell(assetId: string, userId: string, stockAmount: number) {
-    // Wrap the entire operation in a database transaction for safety.
-    return this.entityManager.transaction(async (transactionalEntityManager) => {
-        // 1. Find the pool and LOCK THE ROW to prevent race conditions.
-        const pool = await transactionalEntityManager.findOne(LiquidityPool, {
-        where: { asset_id: assetId },
-        lock: { mode: 'pessimistic_write' },
-        });
-
-        if (!pool) {
-        throw new NotFoundException('Liquidity pool not found for this asset.');
-        }
-
-
-        // Convert all values to numbers for safe calculation.
-        const currentStockBalance = Number(pool.asset_balance);
-        const currentCashBalance = Number(pool.currency_balance);
-        const stockToSell = Number(stockAmount);
-
-        // Calculate the payout for selling the stock using AMM formula.
-        const k = currentCashBalance * currentStockBalance;
-        const newStockBalance = currentStockBalance + stockToSell;
-        const newCashBalance = k / newStockBalance;
-        const payout = currentCashBalance - newCashBalance;
-        const pricePerShare = payout / stockToSell;
-
-        // --- UPDATE THE PORTFOLIO FIRST ---
-        // We remove the stock from the user's portfolio before giving them the money.
-        try {
-        await firstValueFrom(
-            this.httpService.patch(
-            this.portfolioServiceUrl,
-            {
-                userId: userId,
-                assetId: assetId,
-                quantity: -stockToSell, // Negative for a sell
-                tradePrice: pricePerShare,
-            },
-            { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } },
-            ),
-        );
-        } catch (error) {
-        // If this fails, the transaction will be rolled back. No harm done.
-        throw new Error('Failed to update portfolio. Trade has been rolled back.');
-        }
-
-        // --- IF PORTFOLIO UPDATE SUCCEEDS, CREDIT THE WALLET ---
-        try {
-            await firstValueFrom(
-                this.httpService.post( // Use PATCH to the unified endpoint
-                this.walletCreditUrl, // e.g., http://wallet_service:3002/wallet/balance/update
-                { userId: userId, amount: payout }, // Positive amount for credit
-                { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } },
-                ),
-            );
-        } catch (error) {
-            // If this fails, we need to roll back the portfolio change!
-            //this.logger.error('Wallet credit failed. Starting rollback of portfolio...');
-            await firstValueFrom(
-                this.httpService.patch(
-                this.portfolioServiceUrl,
-                { userId: userId, assetId: assetId, quantity: stockToSell, tradePrice: pricePerShare }, // Add the stock back
-                { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } },
-                ),
-            );
-            throw new BadRequestException('Wallet credit failed. Trade has been rolled back.');
-        }
-
-        //--- FINALLY, UPDATE THE LIQUIDITY POOL ---
-        pool.asset_balance = currentStockBalance + stockToSell;
-        pool.currency_balance = currentCashBalance - payout;
-        await transactionalEntityManager.save(pool);
-
-        const pricePoint = this.priceHistoryRepository.create({
-            asset_id: assetId,
-            price: pricePerShare
-        })
-
-        await transactionalEntityManager.save(pricePoint);
-
-        return { message: `Trade executed successfully! ${stockAmount} stocks of Asset ${assetId} sold.` };
-    });
-    }
-
-    // async executeSell(assetId: string, userId: string, stockAmount: number){
-    //     const pool = await this.liqpoolRepository.findOne({where:{id:assetId}})
-
-    
-    //     if(!pool){
-    //         throw new NotFoundException('Wallet not found')
-    //     }
-    //     const curCost = ( pool.currency_balance - pool.k/(pool.asset_balance+stockAmount))
-        
-    //     //TODO: Conenct to potfolio servie to check if user even has this many stocks to sell.
-
-    //     try{
-    //         await firstValueFrom(
-    //             this.httpService.post(this.walletCreditUrl,
-    //                 {userId: userId, amount: curCost},
-    //                 {
-    //                     headers: {
-    //                         'x-internal-api-key': process.env.INTERNAL_API_KEY,
-    //                     }
-    //                 }))
-    //             } catch (error){
-    //                 throw error;
-    //             }
-                
-        
-    //     // Updating portfolio with negative quatity
-    //     try {
-    //         await firstValueFrom(
-    //             this.httpService.patch(this.portfolioServiceUrl,
-    //                 {
-    //                     userId: userId,
-    //                     assetId: assetId,
-    //                     quantity: -stockAmount,
-    //                     tradePrice: curCost/stockAmount
-    //                 },
-    //                 {
-    //                     headers: {
-    //                         'x-internal-api-key': process.env.INTERNAL_API_KEY
-    //                 }}
-    //             )
-    //         )
-    //     } catch(error){
-    //         await firstValueFrom(
-    //             this.httpService.post(this.walletDebitUrl, { userId, amount: curCost }, { headers:{
-    //                         'x-internal-api-key': process.env.INTERNAL_API_KEY,
-    //                     } })
-    //         );
-    //         throw error
-    //     }
-
-    //     pool.asset_balance+=stockAmount;
-    //     pool.currency_balance-=curCost;
-    //     this.liqpoolRepository.save(pool);
-
-    //     return {message: `Trade executed succesfully! ${stockAmount} stocks of Stock ${assetId} sold.`};
-    // }
-
-    async getPrices(assetIds: string[]): Promise<{ assetId: string; price: number }[]>{
-        if (assetIds.length==0){
-            return [];
-        }
-        const pools = await this.liqpoolRepository.find({
-            where: {
-                asset_id: In(assetIds)
+    async placeOrder(assetId: string, userId: string, side: string, type: OrderType, price: number, quantity: number) {
+        return this.entityManager.transaction(async (transactionalEntityManager) => {
+            // Freeze
+            try {
+                if (side === OrderSide.BUY) {
+                    const totalCost = price * quantity;
+                    await firstValueFrom(this.httpService.post(this.walletFreezeUrl, 
+                        { userId, amount: totalCost }, 
+                        { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
+                    ));
+                } else {
+                    await firstValueFrom(this.httpService.post(this.portfolioFreezeUrl, 
+                        { userId, assetId, quantity }, 
+                        { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
+                    ));
+                }
+            } catch (error) {
+                throw new BadRequestException('Failed to freeze assets/funds. Ensure you have enough balance.');
             }
-        })
-       
-        return pools.map(pool => ({
-            assetId: pool.asset_id,
-            price: Number(pool.currency_balance) / Number(pool.asset_balance),
-    }));
+            
+            // Current intent
+            const order = transactionalEntityManager.create(Order, {
+                user_id: userId,
+                asset_id: assetId,
+                side: side as OrderSide,
+                type: type,
+                status: OrderStatus.OPEN,
+                price: price,
+                initial_quantity: quantity,
+                remaining_quantity: quantity,
+            });
+            await transactionalEntityManager.save(order);
+            
+            // All matches
+            const counterSide = side === OrderSide.BUY ? OrderSide.SELL : OrderSide.BUY;
+            const orderSort = side === OrderSide.BUY ? { price: 'ASC', created_at: 'ASC' } : { price: 'DESC', created_at: 'ASC' };
+            const counterOrders = await transactionalEntityManager.find(Order, {
+                where: {
+                    asset_id: assetId,
+                    side: counterSide,
+                    status: In([OrderStatus.OPEN, OrderStatus.PARTIALLY_FILLED]),
+                },
+                order: orderSort,
+                lock: {mode: 'pessimistic_write'},
+            });
+
+            // Order filling loop
+            for (const counterOrder of counterOrders) {
+                if (order.remaining_quantity <= 0) break;
+
+                const isMatch = side === OrderSide.BUY 
+                    ? order.price >= counterOrder.price 
+                    : order.price <= counterOrder.price;
+
+                if (!isMatch) continue;
+
+                const tradePrice = Number(counterOrder.price); 
+                const tradeQuantity = Math.min(Number(order.remaining_quantity), Number(counterOrder.remaining_quantity));
+
+                order.remaining_quantity -= tradeQuantity;
+                counterOrder.remaining_quantity -= tradeQuantity;
+
+                order.status = order.remaining_quantity === 0 ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED;
+                counterOrder.status = counterOrder.remaining_quantity === 0 ? OrderStatus.FILLED : OrderStatus.PARTIALLY_FILLED;
+
+                await transactionalEntityManager.save(counterOrder);
+
+                // Record Trade
+                const trade = transactionalEntityManager.create(Trade, {
+                    asset_id: assetId,
+                    price: tradePrice,
+                    quantity: tradeQuantity,
+                    buyer_id: side === OrderSide.BUY ? userId : counterOrder.user_id,
+                    seller_id: side === OrderSide.SELL ? userId : counterOrder.user_id,
+                    buy_order_id: side === OrderSide.BUY ? order.id : counterOrder.id,
+                    sell_order_id: side === OrderSide.SELL ? order.id : counterOrder.id,
+                });
+                await transactionalEntityManager.save(trade);
+
+                // Log Price History
+                const pricePoint = transactionalEntityManager.create(PriceHistory, {
+                    asset_id: assetId,
+                    price: tradePrice
+                });
+                await transactionalEntityManager.save(pricePoint);
+
+                // Settle Funds
+                try {
+                    await firstValueFrom(this.httpService.post(this.walletSettleUrl, 
+                        { buyerId: trade.buyer_id, sellerId: trade.seller_id, amount: tradePrice * tradeQuantity }, 
+                        { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
+                    ));
+
+                    await firstValueFrom(this.httpService.post(this.portfolioSettleUrl, 
+                        { buyerId: trade.buyer_id, sellerId: trade.seller_id, assetId, quantity: tradeQuantity, tradePrice }, 
+                        { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
+                    ));
+                } catch (error) {
+                    throw new BadRequestException('Critical Error: Settlement failed during execution.');
+                }
+            }
+
+            // Save state of the original order after the matching loop
+            await transactionalEntityManager.save(order);
+
+            return { 
+                message: 'Order processed successfully.', 
+                status: order.status,
+                filledQuantity: quantity - order.remaining_quantity,
+                orderId: order.id
+            };
+        })}
+
+    async getPrices(assetIds: string[]): Promise<{ assetId: string; price: number }[]> {
+        if (assetIds.length === 0) return [];
+        
+        const latestTrades = await this.tradeRepository
+            .createQueryBuilder('trade')
+            .where('trade.asset_id IN (:...assetIds)', { assetIds })
+            .orderBy('trade.timestamp', 'DESC')
+            .getMany();
+
+        const seen = new Set<string>();
+        const prices: { assetId: string; price: number }[] = [];
+        for (const t of latestTrades) {
+            if (!seen.has(t.asset_id)) {
+                prices.push({ assetId: t.asset_id, price: Number(t.price) });
+                seen.add(t.asset_id);
+            }
+        }
+        return prices;
     }
 }
