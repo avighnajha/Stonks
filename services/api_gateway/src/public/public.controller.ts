@@ -2,8 +2,8 @@ import { Controller, Post, Get, Request, Response } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 
-// This controller now handles both /auth and /assets prefixes
-@Controller(['auth', 'assets'])
+// This controller now handles /auth, /assets and public /trade endpoints (quote/history)
+@Controller(['auth', 'assets', 'trade'])
 export class PublicController {
   constructor(private readonly httpService: HttpService) {}
 
@@ -35,6 +35,43 @@ export class PublicController {
         this.httpService.request({
           method,
           url: `${process.env.MARKETPLACE_SERVICE_URL}${originalUrl}`,
+          headers: { 'Content-Type': headers['content-type'] || 'application/json' },
+          data: body,
+        }),
+      );
+      res.status(response.status).json(response.data);
+    } catch (error) {
+      res.status(error.response?.status || 500).json(error.response?.data || 'Internal server error');
+    }
+  }
+
+  // Public trade endpoints: quote and history
+  @Get(['quote/:assetId'])
+  async quoteRequest(@Request() req, @Response() res) {
+    const { method, originalUrl, headers, body } = req;
+    try {
+      const response = await firstValueFrom(
+        this.httpService.request({
+          method,
+          url: `${process.env.TRADING_SERVICE_URL}${originalUrl}`,
+          headers: { 'Content-Type': headers['content-type'] || 'application/json' },
+          data: body,
+        }),
+      );
+      res.status(response.status).json(response.data);
+    } catch (error) {
+      res.status(error.response?.status || 500).json(error.response?.data || 'Internal server error');
+    }
+  }
+
+  @Post(['history/:assetId'])
+  async historyRequest(@Request() req, @Response() res) {
+    const { method, originalUrl, headers, body } = req;
+    try {
+      const response = await firstValueFrom(
+        this.httpService.request({
+          method,
+          url: `${process.env.TRADING_SERVICE_URL}${originalUrl}`,
           headers: { 'Content-Type': headers['content-type'] || 'application/json' },
           data: body,
         }),

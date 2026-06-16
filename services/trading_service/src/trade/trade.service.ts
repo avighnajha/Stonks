@@ -13,16 +13,11 @@ export class TradeService {
     // Use environment-provided service URLs when available, otherwise fall back to Docker service hostnames.
     private readonly walletBase = process.env.WALLET_SERVICE_URL || 'http://wallet_service:3002';
     private readonly portfolioBase = process.env.PORTFOLIO_SERVICE_URL || 'http://portfolio_service:3005';
-    private readonly walletDebitUrl = `${this.walletBase}/wallet/debit`;
-    private readonly walletCreditUrl = `${this.walletBase}/wallet/credit`;
-    private readonly portfolioServiceUrl = `${this.portfolioBase}/portfolio/update`;
     private readonly walletFreezeUrl = `${this.walletBase}/wallet/freeze`;
     private readonly portfolioFreezeUrl = `${this.portfolioBase}/portfolio/freeze`;
     private readonly walletSettleUrl = `${this.walletBase}/wallet/settle`;
     private readonly portfolioSettleUrl = `${this.portfolioBase}/portfolio/settle`;
     constructor(
-        @InjectRepository(Order)
-        private readonly orderRepository: Repository<Order>,
         @InjectRepository(Trade)
         private readonly tradeRepository: Repository<Trade>,
         @InjectRepository(PriceHistory)
@@ -96,13 +91,14 @@ export class TradeService {
             for (const counterOrder of counterOrders) {
                 if (order.remaining_quantity <= 0) break;
 
-                const isMatch = side === OrderSide.BUY 
-                    ? order.price >= counterOrder.price 
-                    : order.price <= counterOrder.price;
+                const isMarket = order.type === OrderType.MARKET || counterOrder.type === OrderType.MARKET;
+                const isMatch = isMarket
+                    ? true
+                    : (side === OrderSide.BUY ? order.price >= counterOrder.price : order.price <= counterOrder.price);
 
                 if (!isMatch) continue;
 
-                const tradePrice = Number(counterOrder.price); 
+                const tradePrice = Number(counterOrder.price);
                 const tradeQuantity = Math.min(Number(order.remaining_quantity), Number(counterOrder.remaining_quantity));
 
                 order.remaining_quantity -= tradeQuantity;
@@ -143,13 +139,63 @@ export class TradeService {
                         { buyerId: trade.buyer_id, sellerId: trade.seller_id, assetId, quantity: tradeQuantity, tradePrice }, 
                         { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
                     ));
-                } catch (error) {
-                    throw new BadRequestException('Critical Error: Settlement failed during execution.');
+                } catch (settleError) {
+                    const failures: string[] = [];
+
+                    // Attempt compensating unfreeze for buyer funds
+                    try {
+                        await firstValueFrom(this.httpService.post(this.walletBase + '/wallet/unfreeze',
+                            { userId: trade.buyer_id, amount: tradePrice * tradeQuantity },
+                            { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
+                        ));
+                    } catch (e) {
+                        failures.push(`wallet.unfreeze for buyer ${trade.buyer_id} failed: ${e?.response?.data || e?.message || e}`);
+                    }
+
+                    // Attempt compensating unfreeze for seller holdings
+                    try {
+                        await firstValueFrom(this.httpService.post(this.portfolioBase + '/portfolio/unfreeze',
+                            { userId: trade.seller_id, assetId, quantity: tradeQuantity },
+                            { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
+                        ));
+                    } catch (e) {
+                        failures.push(`portfolio.unfreeze for seller ${trade.seller_id} failed: ${e?.response?.data || e?.message || e}`);
+                    }
+
+                    if (failures.length > 0) {
+                        throw new BadRequestException({ message: 'Settlement failed and compensating unfreeze partially/fully failed', details: failures, original: settleError?.message || settleError });
+                    }
+
+                    throw new BadRequestException({ message: 'Settlement failed during execution; compensating unfreeze succeeded', original: settleError?.message || settleError });
                 }
             }
 
             // Save state of the original order after the matching loop
             await transactionalEntityManager.save(order);
+
+            // If original order was not fully filled, unfreeze the remaining portion and surface errors if unfreeze fails
+            if (order.remaining_quantity > 0 && order.status !== OrderStatus.FILLED) {
+                if (side === OrderSide.BUY) {
+                    const amountToUnfreeze = Number(order.remaining_quantity) * Number(order.price);
+                    try {
+                        await firstValueFrom(this.httpService.post(this.walletBase + '/wallet/unfreeze',
+                            { userId, amount: amountToUnfreeze },
+                            { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
+                        ));
+                    } catch (e) {
+                        throw new BadRequestException({ message: 'Failed to unfreeze remaining wallet funds for original BUY order', detail: e?.response?.data || e?.message || e });
+                    }
+                } else {
+                    try {
+                        await firstValueFrom(this.httpService.post(this.portfolioBase + '/portfolio/unfreeze',
+                            { userId, assetId, quantity: Number(order.remaining_quantity) },
+                            { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
+                        ));
+                    } catch (e) {
+                        throw new BadRequestException({ message: 'Failed to unfreeze remaining holdings for original SELL order', detail: e?.response?.data || e?.message || e });
+                    }
+                }
+            }
 
             return { 
                 message: 'Order processed successfully.', 
