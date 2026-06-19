@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Request, RequestMapping, UseGuards, ValidationPipe } from "@nestjs/common";
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Request, RequestMapping, UseGuards, ValidationPipe, Logger } from "@nestjs/common";
 import { AssetDto } from "./entities/asset.dto";
 import { AuthGuard } from "@nestjs/passport";
 import { resolveSoa } from "dns";
@@ -9,6 +9,7 @@ import { AssetService } from "./asset.service";
 
 @Controller('assets')
 export class AssetController{
+    private readonly logger = new Logger(AssetController.name);
     constructor(private readonly assetService: AssetService){}
 
     @Get('all')
@@ -39,7 +40,7 @@ export class AssetController{
     @Roles(UserRole.ADMIN)
     @UseGuards(AuthGuard('jwt'), RolesGuard)
     approve(@Param('id', ParseUUIDPipe) id: string){
-        console.log("Approving asset: ", id);
+        this.logger.log(`Approving asset: ${id}`);
         return this.assetService.approve(id);
     }
 }

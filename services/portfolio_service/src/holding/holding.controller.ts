@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Request, UseGuards, ValidationPipe } from "@nestjs/common";
+import { Body, Controller, Get, Patch, Post, Request, UseGuards, ValidationPipe, Logger } from "@nestjs/common";
 import { HoldingService } from "./holding.service";
 import { AuthGuard } from "@nestjs/passport";
 import { InternalApiKeyGuard } from "src/auth/api_key.guard";
@@ -27,6 +27,7 @@ class SettlePortfolioDto {
 
 @Controller('portfolio')
 export class HoldingController{
+    private readonly logger = new Logger(HoldingController.name);
     constructor(private readonly holdingService: HoldingService){}
 
     @Get()
@@ -40,7 +41,7 @@ export class HoldingController{
     @UseGuards(InternalApiKeyGuard)
     updateHoldings(@Body(ValidationPipe) updateHoldingsDto: UpdateholdingsDto){
         const {userId, assetId, quantity, tradePrice} = updateHoldingsDto;
-        console.log('------>PORTFOLIO SERVICE          Updating portolio for: ', userId, quantity, tradePrice)
+        this.logger.log(`------>PORTFOLIO SERVICE Updating portfolio for: ${userId} qty=${quantity} price=${tradePrice}`)
         return this.holdingService.updateHoldings(userId, assetId, quantity, tradePrice);
     }
 
@@ -48,7 +49,7 @@ export class HoldingController{
     @UseGuards(InternalApiKeyGuard)
     freezeHoldings(@Body(ValidationPipe) freezeDto: FreezeHoldingsDto){
         const { userId, assetId, quantity } = freezeDto;
-        console.log('------>PORTFOLIO SERVICE          Freezing holdings for: ', userId, assetId, quantity)
+        this.logger.log(`------>PORTFOLIO SERVICE Freezing holdings for: ${userId} ${assetId} qty=${quantity}`)
         return this.holdingService.freezeHoldings(userId, assetId, quantity);
     }
 
@@ -56,7 +57,7 @@ export class HoldingController{
     @UseGuards(InternalApiKeyGuard)
     unfreezeHoldings(@Body(ValidationPipe) freezeDto: FreezeHoldingsDto){
         const { userId, assetId, quantity } = freezeDto;
-        console.log('------>PORTFOLIO SERVICE          Unfreezing holdings for: ', userId, assetId, quantity)
+        this.logger.log(`------>PORTFOLIO SERVICE Unfreezing holdings for: ${userId} ${assetId} qty=${quantity}`)
         return this.holdingService.unfreezeHoldings(userId, assetId, quantity);
     }
 
@@ -64,7 +65,7 @@ export class HoldingController{
     @UseGuards(InternalApiKeyGuard)
     settle(@Body(ValidationPipe) settleDto: SettlePortfolioDto){
         const { buyerId, sellerId, assetId, quantity } = settleDto;
-        console.log('------>PORTFOLIO SERVICE          Settling holdings for: ', buyerId, sellerId, assetId, quantity)
+        this.logger.log(`------>PORTFOLIO SERVICE Settling holdings for: ${buyerId} ${sellerId} ${assetId} qty=${quantity}`)
         return this.holdingService.settleTrade(buyerId, sellerId, assetId, quantity);
     }
 }

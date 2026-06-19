@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import useSocket from '@/hooks/useSocket';
 import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,10 +18,44 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
   const [selectedTimeframe, setSelectedTimeframe] = useState('1D');
   const [tradeAmount, setTradeAmount] = useState('');
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
+  const [orderKind, setOrderKind] = useState<'MARKET' | 'LIMIT'>('MARKET');
+  const [limitPrice, setLimitPrice] = useState<string>('');
   const { toast } = useToast();
 
   const timeframes = ['1D', '1W', '1M', '3M', '1Y', 'ALL'];
-  const isPositive = stock?.change >= 0;
+  const [currentPrice, setCurrentPrice] = useState<number>(stock?.price ?? 0);
+  const [currentChange, setCurrentChange] = useState<number>(stock?.change ?? 0);
+  const [currentChangePercent, setCurrentChangePercent] = useState<number>(stock?.changePercent ?? 0);
+  const isPositive = currentChange >= 0;
+  const socket = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handler = (payload: any) => {
+      if (!payload) return;
+      if (payload.assetId !== stock.id) return;
+      const newPrice = Number(payload.price);
+      const oldPrice = currentPrice || stock.price || 0;
+      const change = newPrice - oldPrice;
+      const changePercent = oldPrice ? (change / oldPrice) * 100 : 0;
+      setCurrentPrice(newPrice);
+      setCurrentChange(change);
+      setCurrentChangePercent(changePercent);
+    };
+
+    socket.on('newTrade', handler);
+    return () => {
+      socket.off('newTrade', handler);
+    };
+  }, [socket, stock.id, currentPrice]);
+
+  useEffect(() => {
+    // whenever stock changes, reset current price to the provided value
+    setCurrentPrice(stock?.price ?? 0);
+    setCurrentChange(stock?.change ?? 0);
+    setCurrentChangePercent(stock?.changePercent ?? 0);
+  }, [stock]);
   
   // Mock extended data for different timeframes
   const mockData = {
@@ -65,10 +100,14 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
       }
 
       try {
+        const assetAmount = Number(tradeAmount);
+        const price = orderKind === 'LIMIT' ? Number(limitPrice) : currentPrice;
+        const payload = { assetAmount, price, type: orderKind };
+
         if (tradeType === 'buy') {
-          await tradingApi.buyAsset(stock.id, amount);
+          await tradingApi.buyAsset(stock.id, payload as any);
         } else {
-          await tradingApi.sellAsset(stock.id, amount);
+          await tradingApi.sellAsset(stock.id, payload as any);
         }
 
         // Refresh portfolio and wallet, then notify listeners
@@ -138,7 +177,7 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
           <div>
             <h1 className="text-2xl font-bold">{stock.name}</h1>
             <div className="flex items-center space-x-2">
-              <span className="text-3xl font-bold">${stock.price.toFixed(2)}</span>
+                <span className="text-3xl font-bold">${currentPrice.toFixed(2)}</span>
               <div className={`flex items-center space-x-1 ${
                 isPositive ? 'text-success' : 'text-danger'
               }`}>
@@ -148,7 +187,7 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
                   <TrendingDown className="h-4 w-4" />
                 )}
                 <span className="font-medium">
-                  {isPositive ? '+' : ''}${stock.change.toFixed(2)} ({stock.changePercent.toFixed(2)}%)
+                  {isPositive ? '+' : ''}${currentChange.toFixed(2)} ({currentChangePercent.toFixed(2)}%)
                 </span>
               </div>
             </div>
@@ -275,16 +314,47 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="amount">Amount ($)</Label>
+            <Label htmlFor="amount">Quantity (Shares)</Label>
             <Input
               id="amount"
               type="number"
               value={tradeAmount}
               onChange={(e) => setTradeAmount(e.target.value)}
-              placeholder="Enter amount to invest"
+              placeholder="Enter number of shares"
               className="bg-background border-border"
             />
           </div>
+
+          <div className="flex space-x-2">
+            <Button
+              variant={orderKind === 'MARKET' ? 'default' : 'outline'}
+              onClick={() => setOrderKind('MARKET')}
+              className={orderKind === 'MARKET' ? 'bg-primary text-primary-foreground' : ''}
+            >
+              Market
+            </Button>
+            <Button
+              variant={orderKind === 'LIMIT' ? 'default' : 'outline'}
+              onClick={() => setOrderKind('LIMIT')}
+              className={orderKind === 'LIMIT' ? 'bg-primary text-primary-foreground' : ''}
+            >
+              Limit
+            </Button>
+          </div>
+
+          {orderKind === 'LIMIT' && (
+            <div className="space-y-2">
+              <Label htmlFor="limitPrice">Limit Price ($)</Label>
+              <Input
+                id="limitPrice"
+                type="number"
+                value={limitPrice}
+                onChange={(e) => setLimitPrice(e.target.value)}
+                placeholder="Enter limit price"
+                className="bg-background border-border"
+              />
+            </div>
+          )}
           
           <Button 
             onClick={handleTrade} 
@@ -293,7 +363,7 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
                 ? 'bg-gradient-success hover:opacity-90' 
                 : 'bg-gradient-danger hover:opacity-90'
             } text-white`}
-            disabled={!tradeAmount || !isUuid(stock.id)}
+            disabled={!tradeAmount || !isUuid(stock.id) || (orderKind === 'LIMIT' && !limitPrice)}
           >
             {tradeType === 'buy' ? 'Buy' : 'Sell'} {stock.name}
           </Button>

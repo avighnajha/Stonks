@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException, Logger } from "@nestjs/common";
 import { InjectRepository, InjectEntityManager } from "@nestjs/typeorm";
 import { Holding } from "./entities/holding.entity";
 import { Repository, EntityManager } from "typeorm";
@@ -16,6 +16,7 @@ class PortfolioHoldingDto {
 
 @Injectable()
 export class HoldingService{
+    private readonly logger = new Logger(HoldingService.name);
     constructor(
         @InjectRepository(Holding)
         private readonly holdingRepository: Repository<Holding>,
@@ -81,7 +82,7 @@ export class HoldingService{
             return await this.holdingRepository.save(newHolding);
         } else {
             // This is an existing holding
-            console.log(holding.quantity, quantityChange)
+            this.logger.debug(`Existing holding quantity=${holding.quantity}, quantityChange=${quantityChange}`);
         
             const currentQuantity = parseFloat(holding.quantity as any);
             const currentAvgPrice = parseFloat(holding.average_buy_price as any);
@@ -89,7 +90,7 @@ export class HoldingService{
             const newTradePrice = parseFloat(tradePrice as any);
 
             const newQuantity = currentQuantity + changeAmount;
-            console.log(currentQuantity, changeAmount)
+            this.logger.debug(`currentQuantity=${currentQuantity} changeAmount=${changeAmount}`)
             if (newQuantity < 0) {
                 throw new BadRequestException("User does not own enough stock to sell.");
             }
@@ -106,7 +107,7 @@ export class HoldingService{
                 holding.average_buy_price = totalCost / newQuantity;
             }
             // If it's a SELL order, the average_buy_price does not change.
-            console.log("New quantity of stock after buying", newQuantity)
+            this.logger.log(`New quantity of stock after buying ${newQuantity}`)
             holding.quantity = newQuantity;
             return await this.holdingRepository.save(holding);
         }

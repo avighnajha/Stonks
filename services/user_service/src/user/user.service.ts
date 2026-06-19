@@ -61,7 +61,7 @@ export class UserService {
 
         const {password_hash, ...result} = newUser;
         
-        console.log(`--- New user registered: ${email} ---`);
+        this.logger.log(`--- New user registered: ${email} ---`);
         
         // Generate token for new user
         const payload = { email: newUser.email, sub: newUser.id, role: newUser.role }
@@ -87,7 +87,7 @@ export class UserService {
         if (!passMatch){
             throw new UnauthorizedException("Invalid login details");
         }
-        console.log("Logging in user with role", foundUser.role)
+        this.logger.log(`Logging in user with role ${foundUser.role}`)
         //jwt payload checked when logging in
         const payload = { email: foundUser.email, sub: foundUser.id, role: foundUser.role }
         return {

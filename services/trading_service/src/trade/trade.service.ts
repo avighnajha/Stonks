@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { EntityManager, In, Repository } from "typeorm";
 import { firstValueFrom } from "rxjs";
@@ -6,10 +6,12 @@ import { HttpService } from "@nestjs/axios";
 import { PriceHistory } from "./entities/price-history.entity";
 import { Order, OrderSide, OrderStatus, OrderType } from "./entities/order.entity";
 import { Trade } from "./entities/trade.entity";
+import { RedisService } from '../redis/redis.service';
 
 
 @Injectable()
 export class TradeService {
+    private readonly logger = new Logger(TradeService.name);
     // Use environment-provided service URLs when available, otherwise fall back to Docker service hostnames.
     private readonly walletBase = process.env.WALLET_SERVICE_URL || 'http://wallet_service:3002';
     private readonly portfolioBase = process.env.PORTFOLIO_SERVICE_URL || 'http://portfolio_service:3005';
@@ -24,6 +26,7 @@ export class TradeService {
         private readonly priceHistoryRepository: Repository<PriceHistory>,
         private readonly httpService: HttpService,
         private readonly entityManager: EntityManager,
+        private readonly redisService: RedisService,
     ){}
 
     async getQuote(assetId: string): Promise<{price: number}>{
@@ -83,7 +86,7 @@ export class TradeService {
                     side: counterSide,
                     status: In([OrderStatus.OPEN, OrderStatus.PARTIALLY_FILLED]),
                 },
-                order: orderSort,
+                order: orderSort as any,
                 lock: {mode: 'pessimistic_write'},
             });
 
@@ -120,6 +123,13 @@ export class TradeService {
                     sell_order_id: side === OrderSide.SELL ? order.id : counterOrder.id,
                 });
                 await transactionalEntityManager.save(trade);
+
+                // Publish trade event to Redis
+                try {
+                    await this.redisService.publishTrade(assetId, tradePrice, tradeQuantity);
+                } catch (err) {
+                    this.logger.warn(`Failed to publish trade to Redis for asset ${assetId}: ${err?.message || err}`);
+                }
 
                 // Log Price History
                 const pricePoint = transactionalEntityManager.create(PriceHistory, {
@@ -172,6 +182,13 @@ export class TradeService {
 
             // Save state of the original order after the matching loop
             await transactionalEntityManager.save(order);
+
+            // Publish order book update to Redis (orders changed)
+            try {
+                await this.redisService.publishOrderBookUpdate(assetId);
+            } catch (err) {
+                this.logger.warn(`Failed to publish order book update to Redis for asset ${assetId}: ${err?.message || err}`);
+            }
 
             // If original order was not fully filled, unfreeze the remaining portion and surface errors if unfreeze fails
             if (order.remaining_quantity > 0 && order.status !== OrderStatus.FILLED) {

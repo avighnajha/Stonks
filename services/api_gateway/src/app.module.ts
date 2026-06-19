@@ -5,6 +5,7 @@ import { PassportModule } from '@nestjs/passport';
 import { ProxyController } from './proxy/proxy.controller';
 import { PublicController } from './public/public.controller';
 import { JwtStrategy } from './auth/jwt.strategy';
+import { TradingGateway } from './trading/trading.gateway';
 
 @Module({
   imports: [
@@ -16,6 +17,6 @@ import { JwtStrategy } from './auth/jwt.strategy';
     PublicController,
     ProxyController,
   ],
-  providers: [JwtStrategy],
+  providers: [JwtStrategy, TradingGateway],
 })
 export class AppModule {}

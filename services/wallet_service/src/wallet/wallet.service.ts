@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { And, Repository, EntityManager } from 'typeorm';
 import { Wallet } from './entities/wallet.entity';
@@ -7,6 +7,7 @@ import { InjectEntityManager } from '@nestjs/typeorm';
 
 @Injectable()
 export class WalletService{
+    private readonly logger = new Logger(WalletService.name);
     constructor(
         @InjectRepository(Wallet)
         private readonly walletRepository: Repository<Wallet>,
@@ -36,7 +37,7 @@ export class WalletService{
     async changeBalance(userId: string, amount: number, debit: boolean): Promise<Wallet> {
         const wallet = await this.getWallet(userId);
         const amountNum = Number(amount);
-        console.log("Debiting from wallet: ", amount, ", available balance: ", wallet.balance)
+        this.logger.debug(`Debiting from wallet: ${amount}, available balance: ${wallet.balance}`)
         if(!wallet){
             throw new NotFoundException('Wallet not found');
         }
@@ -49,7 +50,7 @@ export class WalletService{
         } else {
             wallet.balance = Number(wallet.balance) + amountNum;
         }
-        console.log(`--------> WALLET SERVICE     Og balance ${og_balance} new balance ${wallet.balance}`)
+        this.logger.log(`--------> WALLET SERVICE Og balance ${og_balance} new balance ${wallet.balance}`)
         return this.walletRepository.save(wallet);
     }
 

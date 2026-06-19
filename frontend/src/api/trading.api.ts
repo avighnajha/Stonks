@@ -4,13 +4,15 @@ interface TradeResponse {
   message?: string;
 }
 
-export const buyAsset = async (assetId: string, assetAmount: number): Promise<TradeResponse> => {
-  const res = await axiosInstance.post<TradeResponse>(`/trade/buy/${assetId}`, { assetAmount });
+type TradePayload = { assetAmount: number; price: number; type: 'MARKET' | 'LIMIT' };
+
+export const buyAsset = async (assetId: string, payload: TradePayload): Promise<TradeResponse> => {
+  const res = await axiosInstance.post<TradeResponse>(`/trade/buy/${assetId}`, payload);
   return res.data;
 };
 
-export const sellAsset = async (assetId: string, assetAmount: number): Promise<TradeResponse> => {
-  const res = await axiosInstance.post<TradeResponse>(`/trade/sell/${assetId}`, { assetAmount });
+export const sellAsset = async (assetId: string, payload: TradePayload): Promise<TradeResponse> => {
+  const res = await axiosInstance.post<TradeResponse>(`/trade/sell/${assetId}`, payload);
   return res.data;
 };
 

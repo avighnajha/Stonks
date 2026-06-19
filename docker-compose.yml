@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # The single PostgreSQL database
   postgres_db:
@@ -31,6 +29,7 @@ services:
       - WALLET_SERVICE_URL=http://wallet_service:3002
       - MARKETPLACE_SERVICE_URL=http://marketplace_service:3003
       - TRADING_SERVICE_URL=http://trading_service:3004
+      - REDIS_URL=redis://redis:6379
       - PORTFOLIO_SERVICE_URL=http://portfolio_service:3005
     depends_on:
       - user_service
@@ -93,15 +92,21 @@ services:
     command: npm run start:dev
     volumes:
       - ./services/trading_service:/usr/src/app
-      # --- THE FIX ---
-      - /usr/src/app/node_modules
+      # preserve image-installed node_modules in a named volume
+      - trading_service_node_modules:/usr/src/app/node_modules
     environment:
       - PORT=3004
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
       - JWT_SECRET=${JWT_SECRET}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+      - REDIS_URL=redis://redis:6379
     depends_on:
       - postgres_db
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
 
   portfolio_service:
     build:
@@ -121,3 +126,5 @@ services:
 
 volumes:
   postgres_data:
+  trading_service_node_modules:
+    {}

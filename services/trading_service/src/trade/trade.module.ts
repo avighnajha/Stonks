@@ -7,11 +7,13 @@ import { HttpModule } from '@nestjs/axios';
 import { PriceHistory } from './entities/price-history.entity';
 import { Order } from './entities/order.entity';
 import { Trade } from './entities/trade.entity';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
     imports: [
     TypeOrmModule.forFeature([LiquidityPool, PriceHistory, Order, Trade]),
-    HttpModule
+    HttpModule,
+    RedisModule,
     ],
     controllers: [TradeController],
     providers: [TradeService],
