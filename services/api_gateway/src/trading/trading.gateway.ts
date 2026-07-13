@@ -4,7 +4,7 @@ import { Server } from 'socket.io';
 import Redis from 'ioredis';
 import { Logger } from '@nestjs/common';
 
-@WebSocketGateway({ cors: { origin: '*' } })
+@WebSocketGateway({ namespace: 'market', cors: { origin: '*' } })
 export class TradingGateway implements OnModuleInit {
   @WebSocketServer()
   server: Server;

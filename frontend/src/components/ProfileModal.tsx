@@ -42,14 +42,41 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
       });
       return;
     }
-    
-    toast({
-      title: "IPO Submitted!",
-      description: `${formData.name} has been submitted for review`,
-    });
-    
-    setFormData({ name: '', description: '', imageLink: '' });
-    setShowIPOForm(false);
+    (async () => {
+      try {
+        // call API gateway to submit IPO
+        const payload = {
+          name: formData.name,
+          description: formData.description,
+          imageUrl: formData.imageLink || null,
+        };
+        // axiosInstance is not imported here; use fetch to avoid adding imports in this change
+        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+        const token = localStorage.getItem('authToken');
+        const res = await fetch(`${apiBase}/assets/submit`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const err = await res.text();
+          throw new Error(err || 'Failed to submit IPO');
+        }
+
+        toast({
+          title: "IPO Submitted!",
+          description: `${formData.name} has been submitted for review`,
+        });
+
+        setFormData({ name: '', description: '', imageLink: '' });
+        setShowIPOForm(false);
+      } catch (err: any) {
+        toast({ title: 'Submission failed', description: err?.message || String(err), variant: 'destructive' });
+      }
+    })();
   };
 
   return (

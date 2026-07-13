@@ -113,6 +113,30 @@ export class HoldingService{
         }
     }
 
+    // Mint holdings directly to a user without involving wallet operations.
+    async mintHolding(userId: string, assetId: string, quantity: number) {
+        if (quantity <= 0) {
+            throw new BadRequestException('Mint quantity must be positive');
+        }
+
+        const existing = await this.holdingRepository.findOne({ where: { user_id: userId, asset_id: assetId } });
+        if (!existing) {
+            const newHolding = this.holdingRepository.create({
+                user_id: userId,
+                asset_id: assetId,
+                quantity: quantity,
+                frozen_quantity: 0,
+                average_buy_price: 0,
+            });
+            return await this.holdingRepository.save(newHolding);
+        }
+
+        const currentQuantity = parseFloat(existing.quantity as any) || 0;
+        existing.quantity = (currentQuantity + Number(quantity));
+        // average_buy_price remains unchanged for minted assets (cost = 0)
+        return await this.holdingRepository.save(existing);
+    }
+
     // Freeze holdings when placing a sell order
     async freezeHoldings(userId: string, assetId: string, quantity: number): Promise<Holding>{
         const holding = await this.holdingRepository.findOne({ where: { user_id: userId, asset_id: assetId } });

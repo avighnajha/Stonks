@@ -18,6 +18,20 @@ class TradeDto {
     type: OrderType;
 }
 
+class InternalTradeDto {
+    userId: string;
+    @IsNumber()
+    @IsPositive()
+    assetAmount: number;
+
+    @IsNumber()
+    @IsPositive()
+    price: number;
+
+    @IsEnum(OrderType)
+    type: OrderType;
+}
+
 class GetPricesDto {
     @IsArray()
     @IsUUID('4', { each: true })
@@ -64,5 +78,12 @@ export class TradeController {
     @UseGuards(InternalApiKeyGuard)
     getPrices(@Body(ValidationPipe) getPricesDto: GetPricesDto){
         return this.tradeService.getPrices(getPricesDto.assetIds);
+    }
+
+    @Post('internal/sell/:assetId')
+    @UseGuards(InternalApiKeyGuard)
+    internalSell(@Body(ValidationPipe) internalDto: InternalTradeDto, @Param('assetId', ParseUUIDPipe) assetId: string){
+        const { userId, assetAmount, price, type } = internalDto;
+        return this.tradeService.placeOrder(assetId, userId, 'SELL', type, price, assetAmount);
     }
 }

@@ -25,6 +25,12 @@ class SettlePortfolioDto {
     quantity: number;
 }
 
+class MintHoldingDto {
+    userId: string;
+    assetId: string;
+    quantity: number;
+}
+
 @Controller('portfolio')
 export class HoldingController{
     private readonly logger = new Logger(HoldingController.name);
@@ -67,5 +73,13 @@ export class HoldingController{
         const { buyerId, sellerId, assetId, quantity } = settleDto;
         this.logger.log(`------>PORTFOLIO SERVICE Settling holdings for: ${buyerId} ${sellerId} ${assetId} qty=${quantity}`)
         return this.holdingService.settleTrade(buyerId, sellerId, assetId, quantity);
+    }
+
+    @Post('mint')
+    @UseGuards(InternalApiKeyGuard)
+    mint(@Body(ValidationPipe) mintDto: MintHoldingDto){
+        const { userId, assetId, quantity } = mintDto;
+        this.logger.log(`------>PORTFOLIO SERVICE Minting holdings for: ${userId} ${assetId} qty=${quantity}`)
+        return this.holdingService.mintHolding(userId, assetId, quantity);
     }
 }

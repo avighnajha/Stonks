@@ -24,6 +24,15 @@ export class Asset{
         nullable: true})
     imageUrl?: string;
 
+    @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+    initial_price?: number;
+
+    @Column({ type: 'decimal', precision: 12, scale: 4, nullable: true })
+    total_supply?: number;
+
+    @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+    creator_split_percentage?: number;
+
     @Column({
         type: 'simple-enum',
         enum: Status,

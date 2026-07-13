@@ -22,6 +22,11 @@ export const Layout = ({ children, activeTab, onTabChange }: LayoutProps) => {
     { id: 'portfolio', label: 'Portfolio', icon: PieChart },
     { id: 'trending', label: 'Trending', icon: TrendingUp },
   ];
+  
+  // If user is ADMIN, add Approvals tab
+  if (user?.role === 'ADMIN') {
+    tabs.push({ id: 'approvals', label: 'Approvals', icon: User });
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">

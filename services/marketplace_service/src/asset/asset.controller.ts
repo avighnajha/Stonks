@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Request, RequestMapping, UseGuards, ValidationPipe, Logger } from "@nestjs/common";
 import { AssetDto } from "./entities/asset.dto";
+import { ApproveAssetDto } from "./dto/approve-asset.dto";
 import { AuthGuard } from "@nestjs/passport";
 import { resolveSoa } from "dns";
 import { UserRole } from "src/auth/user-role.enum";
@@ -39,8 +40,9 @@ export class AssetController{
     @Patch(':id/approve')
     @Roles(UserRole.ADMIN)
     @UseGuards(AuthGuard('jwt'), RolesGuard)
-    approve(@Param('id', ParseUUIDPipe) id: string){
-        this.logger.log(`Approving asset: ${id}`);
-        return this.assetService.approve(id);
+    approve(@Param('id', ParseUUIDPipe) id: string, @Request() req, @Body(ValidationPipe) dto: ApproveAssetDto){
+        const adminUserId = req.user?.userId;
+        this.logger.log(`Approving asset: ${id} by admin: ${adminUserId}`);
+        return this.assetService.approve(id, dto, adminUserId);
     }
 }

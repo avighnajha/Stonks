@@ -114,7 +114,6 @@ services:
     command: npm run start:dev
     volumes:
       - ./services/portfolio_service:/usr/src/app
-      # --- THE FIX ---
       - /usr/src/app/node_modules
     environment:
       - PORT=3005

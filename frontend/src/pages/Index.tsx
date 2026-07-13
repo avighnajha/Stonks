@@ -4,6 +4,7 @@ import { Explore } from '@/pages/Explore';
 import { Portfolio } from '@/pages/Portfolio';
 import { Trending } from '@/pages/Trending';
 import { StockDetail } from '@/pages/StockDetail';
+import Approvals from '@/pages/Approvals';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('explore');
@@ -32,6 +33,8 @@ const Index = () => {
         return <Portfolio />;
       case 'trending':
         return <Trending onStockClick={handleStockClick} />;
+      case 'approvals':
+        return <Approvals />;
       default:
         return <Explore onStockClick={handleStockClick} />;
     }
