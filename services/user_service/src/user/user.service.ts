@@ -73,7 +73,8 @@ export class UserService {
                 id: newUser.id,
                 email: newUser.email,
                 name: newUser.username,
-                balance: 0
+                balance: 0,
+                role: newUser.role,
             }
         };
     }
@@ -96,7 +97,8 @@ export class UserService {
                 id: foundUser.id,
                 email: foundUser.email,
                 name: foundUser.username,
-                balance: 0
+                balance: 0,
+                role: foundUser.role,
             }
         };
     }

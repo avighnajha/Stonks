@@ -23,7 +23,7 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
   const { toast } = useToast();
 
   const timeframes = ['1D', '1W', '1M', '3M', '1Y', 'ALL'];
-  const [currentPrice, setCurrentPrice] = useState<number>(stock?.price ?? 0);
+  const [currentPrice, setCurrentPrice] = useState<number>(stock?.price ?? stock?.initialPrice ?? 0);
   const [currentChange, setCurrentChange] = useState<number>(stock?.change ?? 0);
   const [currentChangePercent, setCurrentChangePercent] = useState<number>(stock?.changePercent ?? 0);
   const isPositive = currentChange >= 0;
@@ -52,11 +52,19 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
 
   useEffect(() => {
     // whenever stock changes, reset current price to the provided value
-    setCurrentPrice(stock?.price ?? 0);
+    setCurrentPrice(stock?.price ?? stock?.initialPrice ?? 0);
     setCurrentChange(stock?.change ?? 0);
     setCurrentChangePercent(stock?.changePercent ?? 0);
   }, [stock]);
   
+  const marketCap = currentPrice * (stock?.totalSupply ?? 0);
+  const formattedMarketCap = marketCap > 0
+    ? `$${marketCap.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+    : 'N/A';
+  const formattedInvestors = stock?.investors != null
+    ? stock.investors
+    : 'N/A';
+
   // Mock extended data for different timeframes
   const mockData = {
     '1D': stock?.data || [],
@@ -79,7 +87,7 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
     const range = max - min || 1;
     
     const points = data.map((value, index) => {
-      const x = (index / (data.length - 1)) * width;
+      const x = data.length === 1 ? width / 2 : (index / (data.length - 1)) * width;
       const y = height - ((value - min) / range) * height;
       return `${x},${y}`;
     });
@@ -250,17 +258,8 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground leading-relaxed">
-            {stock.name === 'Kylian Mbappé' && 
-              "French professional footballer who plays as a forward. Known for his dribbling abilities, exceptional pace, and finishing, Mbappé is considered one of the best players in the world. Investment in Mbappé represents betting on his continued success, marketability, and global influence in sports and entertainment."
-            }
-            {stock.name === 'Being a Hater' && 
-              "An abstract concept representing the cultural phenomenon of negativity and criticism. This investment tracks the social and economic impact of 'hater culture' across social media platforms, entertainment, and public discourse. High volatility expected due to trending topics and viral moments."
-            }
-            {stock.name === 'Elon Musk' && 
-              "Entrepreneur and business magnate known for founding and leading companies like Tesla, SpaceX, and X (formerly Twitter). Investment in Musk tracks his influence on technology markets, social media trends, and innovation sectors including electric vehicles, space exploration, and artificial intelligence."
-            }
-            {stock.name === 'Artificial Intelligence' && 
-              "The broad concept of machine learning and AI technology development. This investment represents the collective growth and adoption of AI across industries including healthcare, finance, entertainment, and automation. Closely tied to major tech companies and breakthrough developments."
+            {stock.description || stock.longDescription ||
+              'This offering was approved for public trading. Review the current market conditions and performance before trading.'
             }
           </p>
           
@@ -269,14 +268,14 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
               <Users className="h-4 w-4 text-primary" />
               <div>
                 <p className="text-sm text-muted-foreground">Investors</p>
-                <p className="font-semibold">2,847</p>
+                <p className="font-semibold">{formattedInvestors}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
               <DollarSign className="h-4 w-4 text-primary" />
               <div>
                 <p className="text-sm text-muted-foreground">Market Cap</p>
-                <p className="font-semibold">$12.4M</p>
+                <p className="font-semibold">{formattedMarketCap}</p>
               </div>
             </div>
           </div>

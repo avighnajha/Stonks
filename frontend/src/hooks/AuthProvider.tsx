@@ -41,7 +41,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } else if (token && !storedUser) {
           // Token exists but no user data - attempt to fetch current user
           try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/auth/me`, {
+            const apiBase = import.meta.env.VITE_API_URL || '';
+          const res = await fetch(`${apiBase}/auth/me`, {
               headers: {
                 Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json'
@@ -104,13 +105,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       })();
 
+      const normalizeRole = (role?: string) =>
+        role?.toString()?.trim()?.toLowerCase() || undefined;
+
       const userData: User = {
         id: response.user?.id || response.user?.userId || '1',
         name: response.user?.name || response.user?.username || email.split('@')[0],
         email: response.user?.email || email,
         balance: walletBalance,
         totalInvested: 0,
-        role: response.user?.role || response.user?.roles || undefined
+        role: normalizeRole(response.user?.role) || normalizeRole(response.user?.roles),
       };
 
       setUser(userData);
@@ -148,13 +152,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       })();
 
+      const normalizeRole = (role?: string) =>
+        role?.toString()?.trim()?.toLowerCase() || undefined;
+
       const userData: User = {
         id: response.user?.id || response.user?.userId || '1',
         name: response.user?.name || response.user?.username || name,
         email: response.user?.email || email,
         balance: walletBalanceReg,
         totalInvested: 0,
-        role: response.user?.role || response.user?.roles || undefined
+        role: normalizeRole(response.user?.role) || normalizeRole(response.user?.roles),
       };
 
       setUser(userData);

@@ -37,6 +37,9 @@ type Asset = {
   change?: number;
   changePercent?: number;
   data?: number[];
+  initialPrice?: number;
+  totalSupply?: number;
+  description?: string;
 };
 
 interface ExploreProps {
@@ -56,15 +59,22 @@ export const Explore = ({ onStockClick }: ExploreProps) => {
         const res = await axiosInstance.get('/assets/approved');
         const data = res.data?.assets || res.data || [];
         if (!mounted) return;
-        const mapped: Asset[] = data.map((a: any) => ({
-          id: a.id || a.assetId || String(a.name),
-          name: a.name || a.title || 'Unknown',
-          image: a.image || defaultImages[a.name] || '',
-          price: a.price || a.lastPrice || 0,
-          change: a.change || 0,
-          changePercent: a.changePercent || 0,
-          data: a.history || a.prices || [0]
-        }));
+        const mapped: Asset[] = data.map((a: any) => {
+          const price = Number(a.price ?? a.initial_price ?? a.lastPrice ?? 0);
+          const values = a.history || a.prices || (price ? [price] : [0]);
+          return {
+            id: a.id || a.assetId || String(a.name),
+            name: a.name || a.title || 'Unknown',
+            image: a.image || a.imageUrl || defaultImages[a.name] || '',
+            price,
+            change: Number(a.change ?? 0),
+            changePercent: Number(a.changePercent ?? 0),
+            data: values,
+            initialPrice: Number(a.initial_price ?? 0),
+            totalSupply: Number(a.total_supply ?? 0),
+            description: a.description || '',
+          };
+        });
         setAssets(mapped.length ? mapped : trendingStocksFallback);
       } catch (err) {
         setAssets(trendingStocksFallback);

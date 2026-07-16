@@ -4,6 +4,7 @@ import { EntityManager, In, Repository } from "typeorm";
 import { firstValueFrom } from "rxjs";
 import { HttpService } from "@nestjs/axios";
 import { PriceHistory } from "./entities/price-history.entity";
+import { LiquidityPool } from "./entities/liquidity_pool.entity";
 import { Order, OrderSide, OrderStatus, OrderType } from "./entities/order.entity";
 import { Trade } from "./entities/trade.entity";
 import { RedisService } from '../redis/redis.service';
@@ -24,6 +25,8 @@ export class TradeService {
         private readonly tradeRepository: Repository<Trade>,
         @InjectRepository(PriceHistory)
         private readonly priceHistoryRepository: Repository<PriceHistory>,
+        @InjectRepository(LiquidityPool)
+        private readonly liquidityPoolRepository: Repository<LiquidityPool>,
         private readonly httpService: HttpService,
         private readonly entityManager: EntityManager,
         private readonly redisService: RedisService,
@@ -42,6 +45,20 @@ export class TradeService {
             where:{ asset_id: assetId },
             order: { timestamp: 'ASC' }
         });
+    }
+
+    async createPool(assetId: string) {
+        const existingPool = await this.liquidityPoolRepository.findOne({ where: { asset_id: assetId } });
+        if (existingPool) {
+            return existingPool;
+        }
+
+        const pool = this.liquidityPoolRepository.create({
+            asset_id: assetId,
+            asset_balance: 0,
+            currency_balance: 0,
+        });
+        return this.liquidityPoolRepository.save(pool);
     }
 
     async placeOrder(assetId: string, userId: string, side: string, type: OrderType, price: number, quantity: number) {

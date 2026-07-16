@@ -32,6 +32,11 @@ class InternalTradeDto {
     type: OrderType;
 }
 
+class CreatePoolDto {
+    @IsUUID('4')
+    assetId: string;
+}
+
 class GetPricesDto {
     @IsArray()
     @IsUUID('4', { each: true })
@@ -78,6 +83,12 @@ export class TradeController {
     @UseGuards(InternalApiKeyGuard)
     getPrices(@Body(ValidationPipe) getPricesDto: GetPricesDto){
         return this.tradeService.getPrices(getPricesDto.assetIds);
+    }
+
+    @Post('create-pool')
+    @UseGuards(InternalApiKeyGuard)
+    createPool(@Body(ValidationPipe) createPoolDto: CreatePoolDto){
+        return this.tradeService.createPool(createPoolDto.assetId);
     }
 
     @Post('internal/sell/:assetId')

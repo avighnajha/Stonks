@@ -30,7 +30,7 @@ export const StockCard = ({ stock, onClick }: StockCardProps) => {
     const range = max - min || 1;
     
     const points = data.map((value, index) => {
-      const x = (index / (data.length - 1)) * width;
+      const x = data.length === 1 ? width / 2 : (index / (data.length - 1)) * width;
       const y = height - ((value - min) / range) * height;
       return `${x},${y}`;
     });

@@ -5,9 +5,9 @@ export default function useSocket() {
   const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
-    const base = (import.meta.env.VITE_API_URL) || 'http://localhost:8080';
-    const url = `${base.replace(/\/$/, '')}/market`;
-    const s = io(url, { transports: ['websocket', 'polling'] });
+    const base = import.meta.env.VITE_API_URL || '';
+    const url = base ? `${base.replace(/\/$/, '')}/market` : '/market';
+    const s = io(url, { path: '/socket.io', transports: ['websocket', 'polling'] });
     setSocket(s);
 
     s.on('connect', () => {

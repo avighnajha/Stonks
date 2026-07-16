@@ -23,8 +23,8 @@ export const Layout = ({ children, activeTab, onTabChange }: LayoutProps) => {
     { id: 'trending', label: 'Trending', icon: TrendingUp },
   ];
   
-  // If user is ADMIN, add Approvals tab
-  if (user?.role === 'ADMIN') {
+  // If user is admin, add Approvals tab
+  if (user?.role && user.role.toLowerCase() === 'admin') {
     tabs.push({ id: 'approvals', label: 'Approvals', icon: User });
   }
 

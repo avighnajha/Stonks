@@ -9,6 +9,13 @@ import elonStock from '@/assets/elon-stock.jpg';
 import aiStock from '@/assets/ai-stock.jpg';
 import axiosInstance from '@/api/axiosInstance';
 
+const defaultImages: Record<string, string> = {
+  'Kylian Mbappé': mbappeStock,
+  'Being a Hater': haterStock,
+  'Elon Musk': elonStock,
+  'Artificial Intelligence': aiStock
+};
+
 type Asset = {
   id: string;
   name: string;
@@ -89,17 +96,21 @@ export const Trending = ({ onStockClick }: TrendingProps) => {
         const res = await axiosInstance.get('/assets/approved');
         const data = res.data?.assets || res.data || [];
         if (!mounted) return;
-        const mapped: Asset[] = data.map((a: any, idx: number) => ({
-          id: a.id || a.assetId || String(idx),
-          name: a.name || a.title || 'Unknown',
-          image: a.image || '',
-          price: a.price || a.lastPrice || 0,
-          change: a.change || 0,
-          changePercent: a.changePercent || 0,
-          data: a.history || a.prices || [0],
-          volume: a.volume || 0,
-          reason: a.reason || a.description || ''
-        }));
+        const mapped: Asset[] = data.map((a: any, idx: number) => {
+          const price = Number(a.price ?? a.initial_price ?? a.lastPrice ?? 0);
+          const dataPoints = a.history || a.prices || (price ? [price] : [0]);
+          return {
+            id: a.id || a.assetId || String(idx),
+            name: a.name || a.title || 'Unknown',
+            image: a.image || a.imageUrl || defaultImages[a.name] || '',
+            price,
+            change: Number(a.change ?? 0),
+            changePercent: Number(a.changePercent ?? 0),
+            data: dataPoints,
+            volume: Number(a.volume ?? 0),
+            reason: a.reason || a.description || ''
+          };
+        });
         setAssets(mapped);
       } catch (err) {
         // ignore - keep mock data

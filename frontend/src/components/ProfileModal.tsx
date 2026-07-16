@@ -51,7 +51,7 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
           imageUrl: formData.imageLink || null,
         };
         // axiosInstance is not imported here; use fetch to avoid adding imports in this change
-        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+        const apiBase = import.meta.env.VITE_API_URL || '';
         const token = localStorage.getItem('authToken');
         const res = await fetch(`${apiBase}/assets/submit`, {
           method: 'POST',
