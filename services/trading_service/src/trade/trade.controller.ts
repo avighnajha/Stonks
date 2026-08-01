@@ -97,4 +97,11 @@ export class TradeController {
         const { userId, assetAmount, price, type } = internalDto;
         return this.tradeService.placeOrder(assetId, userId, 'SELL', type, price, assetAmount);
     }
+
+    @Post('internal/buy/:assetId')
+    @UseGuards(InternalApiKeyGuard)
+    internalBuy(@Body(ValidationPipe) internalDto: InternalTradeDto, @Param('assetId', ParseUUIDPipe) assetId: string){
+        const { userId, assetAmount, price, type } = internalDto;
+        return this.tradeService.placeOrder(assetId, userId, 'BUY', type, price, assetAmount);
+    }
 }

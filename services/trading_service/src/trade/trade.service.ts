@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException, Logger } from "@nestjs/common";
+import * as fs from 'fs';
 import { InjectRepository } from "@nestjs/typeorm";
 import { EntityManager, In, Repository } from "typeorm";
 import { firstValueFrom } from "rxjs";
@@ -8,6 +9,7 @@ import { LiquidityPool } from "./entities/liquidity_pool.entity";
 import { Order, OrderSide, OrderStatus, OrderType } from "./entities/order.entity";
 import { Trade } from "./entities/trade.entity";
 import { RedisService } from '../redis/redis.service';
+import { enqueueCompensation } from '../compensation/compensation.worker';
 
 
 @Injectable()
@@ -31,6 +33,23 @@ export class TradeService {
         private readonly entityManager: EntityManager,
         private readonly redisService: RedisService,
     ){}
+
+    private async postWithRetry(url: string, payload: any, options: any = {}, attempts = 3, baseDelayMs = 200) {
+        let lastErr: any = null;
+        for (let i = 0; i < attempts; i++) {
+            try {
+                if (i > 0) this.logger.warn(`Retrying HTTP POST ${url} attempt #${i + 1}`);
+                await firstValueFrom(this.httpService.post(url, payload, options));
+                return;
+            } catch (e) {
+                lastErr = e;
+                const delay = Math.min(baseDelayMs * Math.pow(2, i), 5000);
+                this.logger.warn(`POST ${url} failed (attempt ${i + 1}/${attempts}): ${e?.message || e}; delaying ${delay}ms`);
+                await new Promise((res) => setTimeout(res, delay));
+            }
+        }
+        throw lastErr;
+    }
 
     async getQuote(assetId: string): Promise<{price: number}>{
         const lastTrade = await this.tradeRepository.findOne({
@@ -65,17 +84,17 @@ export class TradeService {
         return this.entityManager.transaction(async (transactionalEntityManager) => {
             // Freeze
             try {
-                if (side === OrderSide.BUY) {
+                    if (side === OrderSide.BUY) {
                     const totalCost = price * quantity;
-                    await firstValueFrom(this.httpService.post(this.walletFreezeUrl, 
-                        { userId, amount: totalCost }, 
-                        { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
-                    ));
+                    const payload = { userId, amount: totalCost };
+                    this.logger.log(`Freezing buyer wallet funds: ${JSON.stringify(payload)}`);
+                    await this.postWithRetry(this.walletFreezeUrl, payload, { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }, 3, 200);
+                    this.logger.log(`Buyer wallet freeze succeeded for ${userId}`);
                 } else {
-                    await firstValueFrom(this.httpService.post(this.portfolioFreezeUrl, 
-                        { userId, assetId, quantity }, 
-                        { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
-                    ));
+                    const payload = { userId, assetId, quantity };
+                    this.logger.log(`Freezing seller portfolio holdings: ${JSON.stringify(payload)}`);
+                    await this.postWithRetry(this.portfolioFreezeUrl, payload, { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }, 3, 200);
+                    this.logger.log(`Seller portfolio freeze succeeded for ${userId}`);
                 }
             } catch (error) {
                 throw new BadRequestException('Failed to freeze assets/funds. Ensure you have enough balance.');
@@ -157,39 +176,80 @@ export class TradeService {
 
                 // Settle Funds
                 try {
-                    await firstValueFrom(this.httpService.post(this.walletSettleUrl, 
+                    // Optional test hook: if /tmp/trading_test_delay_ms exists in container,
+                    // pause here to allow external test orchestration (stop services, etc.).
+                    try {
+                        const delayFile = '/tmp/trading_test_delay_ms';
+                        if (fs.existsSync(delayFile)) {
+                            const raw = fs.readFileSync(delayFile, 'utf8').trim();
+                            const ms = Number(raw) || 0;
+                            if (ms > 0) {
+                                this.logger.warn(`Test delay active: sleeping ${ms}ms before settle`);
+                                await new Promise((res) => setTimeout(res, ms));
+                            }
+                        }
+                    } catch (e) {
+                        // ignore test hook errors
+                    }
+                    await this.postWithRetry(this.walletSettleUrl, 
                         { buyerId: trade.buyer_id, sellerId: trade.seller_id, amount: tradePrice * tradeQuantity }, 
-                        { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
-                    ));
+                        { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } },
+                        3,
+                        200
+                    );
 
-                    await firstValueFrom(this.httpService.post(this.portfolioSettleUrl, 
+                    await this.postWithRetry(this.portfolioSettleUrl, 
                         { buyerId: trade.buyer_id, sellerId: trade.seller_id, assetId, quantity: tradeQuantity, tradePrice }, 
-                        { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
-                    ));
+                        { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } },
+                        3,
+                        200
+                    );
                 } catch (settleError) {
                     const failures: string[] = [];
 
                     // Attempt compensating unfreeze for buyer funds
                     try {
-                        await firstValueFrom(this.httpService.post(this.walletBase + '/wallet/unfreeze',
-                            { userId: trade.buyer_id, amount: tradePrice * tradeQuantity },
-                            { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
-                        ));
+                        const payloadBuyer = { userId: trade.buyer_id, amount: tradePrice * tradeQuantity };
+                        this.logger.warn(`Attempting compensating wallet.unfreeze for buyer ${trade.buyer_id} payload=${JSON.stringify(payloadBuyer)}`);
+                        await this.postWithRetry(this.walletBase + '/wallet/unfreeze', payloadBuyer, { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }, 5, 500);
+                        this.logger.log(`Compensating wallet.unfreeze for buyer ${trade.buyer_id} succeeded`);
                     } catch (e) {
-                        failures.push(`wallet.unfreeze for buyer ${trade.buyer_id} failed: ${e?.response?.data || e?.message || e}`);
+                        const errDetail = e?.response?.data || e?.message || String(e);
+                        this.logger.error(`Compensating wallet.unfreeze failed for buyer ${trade.buyer_id}: ${errDetail}`);
+                        failures.push(`wallet.unfreeze for buyer ${trade.buyer_id} failed: ${errDetail}`);
+                        try {
+                            await enqueueCompensation('wallet_unfreeze', { userId: trade.buyer_id, amount: tradePrice * tradeQuantity });
+                        } catch (qe) {
+                            this.logger.error(`Failed to enqueue wallet_unfreeze compensation for buyer ${trade.buyer_id}: ${qe?.message || qe}`);
+                        }
                     }
 
                     // Attempt compensating unfreeze for seller holdings
                     try {
-                        await firstValueFrom(this.httpService.post(this.portfolioBase + '/portfolio/unfreeze',
-                            { userId: trade.seller_id, assetId, quantity: tradeQuantity },
-                            { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
-                        ));
+                        const payloadSeller = { userId: trade.seller_id, assetId, quantity: tradeQuantity };
+                        this.logger.warn(`Attempting compensating portfolio.unfreeze for seller ${trade.seller_id} payload=${JSON.stringify(payloadSeller)}`);
+                        await this.postWithRetry(this.portfolioBase + '/portfolio/unfreeze', payloadSeller, { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }, 5, 500);
+                        this.logger.log(`Compensating portfolio.unfreeze for seller ${trade.seller_id} succeeded`);
                     } catch (e) {
-                        failures.push(`portfolio.unfreeze for seller ${trade.seller_id} failed: ${e?.response?.data || e?.message || e}`);
+                        const errDetail = e?.response?.data || e?.message || String(e);
+                        this.logger.error(`Compensating portfolio.unfreeze failed for seller ${trade.seller_id}: ${errDetail}`);
+                        failures.push(`portfolio.unfreeze for seller ${trade.seller_id} failed: ${errDetail}`);
+                        try {
+                            await enqueueCompensation('portfolio_unfreeze', { userId: trade.seller_id, assetId, quantity: tradeQuantity });
+                        } catch (qe) {
+                            this.logger.error(`Failed to enqueue portfolio_unfreeze compensation for seller ${trade.seller_id}: ${qe?.message || qe}`);
+                        }
                     }
 
                     if (failures.length > 0) {
+                        // Enqueue any failed compensations for async retry (durable)
+                        try {
+                            for (const f of failures) {
+                                // failures are strings describing which side failed; we also queued above immediately when each failed
+                            }
+                        } catch (e) {
+                            this.logger.error('Failed to enqueue compensations: ' + (e?.message || e));
+                        }
                         throw new BadRequestException({ message: 'Settlement failed and compensating unfreeze partially/fully failed', details: failures, original: settleError?.message || settleError });
                     }
 
@@ -212,19 +272,13 @@ export class TradeService {
                 if (side === OrderSide.BUY) {
                     const amountToUnfreeze = Number(order.remaining_quantity) * Number(order.price);
                     try {
-                        await firstValueFrom(this.httpService.post(this.walletBase + '/wallet/unfreeze',
-                            { userId, amount: amountToUnfreeze },
-                            { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
-                        ));
+                        await this.postWithRetry(this.walletBase + '/wallet/unfreeze', { userId, amount: amountToUnfreeze }, { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }, 3, 200);
                     } catch (e) {
                         throw new BadRequestException({ message: 'Failed to unfreeze remaining wallet funds for original BUY order', detail: e?.response?.data || e?.message || e });
                     }
                 } else {
                     try {
-                        await firstValueFrom(this.httpService.post(this.portfolioBase + '/portfolio/unfreeze',
-                            { userId, assetId, quantity: Number(order.remaining_quantity) },
-                            { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }
-                        ));
+                        await this.postWithRetry(this.portfolioBase + '/portfolio/unfreeze', { userId, assetId, quantity: Number(order.remaining_quantity) }, { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }, 3, 200);
                     } catch (e) {
                         throw new BadRequestException({ message: 'Failed to unfreeze remaining holdings for original SELL order', detail: e?.response?.data || e?.message || e });
                     }

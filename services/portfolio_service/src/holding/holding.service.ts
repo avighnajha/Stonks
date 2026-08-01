@@ -1,8 +1,8 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException, Logger } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException, Logger } from "@nestjs/common";
 import { InjectRepository, InjectEntityManager } from "@nestjs/typeorm";
 import { Holding } from "./entities/holding.entity";
 import { Repository, EntityManager } from "typeorm";
-import { ArgumentOutOfRangeError, firstValueFrom } from "rxjs";
+import { firstValueFrom } from "rxjs";
 import { HttpService } from "@nestjs/axios";
 
 class PortfolioHoldingDto {
@@ -25,6 +25,89 @@ export class HoldingService{
         private readonly entityManager: EntityManager
     ){}
 
+    private async consolidateHoldingRows(userId: string, assetId: string, manager?: EntityManager): Promise<Holding | null> {
+        const repository = manager ? manager.getRepository(Holding) : this.holdingRepository;
+        let query = repository.createQueryBuilder('h')
+            .where('h.user_id = :userId', { userId })
+            .andWhere('h.asset_id = :assetId', { assetId });
+
+        if (manager) {
+            query = query.setLock('pessimistic_write');
+        }
+
+        const holdings = await query.getMany();
+
+        if (!holdings || holdings.length === 0) {
+            return null;
+        }
+
+        if (holdings.length === 1) {
+            return holdings[0];
+        }
+
+        let totalQuantity = 0;
+        let totalFrozen = 0;
+        let weightedCost = 0;
+
+        for (const holding of holdings) {
+            const quantity = Number(holding.quantity) || 0;
+            totalQuantity += quantity;
+            totalFrozen += Number(holding.frozen_quantity) || 0;
+            weightedCost += quantity * (Number(holding.average_buy_price) || 0);
+        }
+
+        const primary = holdings[0];
+        primary.quantity = totalQuantity;
+        primary.frozen_quantity = totalFrozen;
+        primary.average_buy_price = totalQuantity > 0 ? weightedCost / totalQuantity : 0;
+        await repository.save(primary);
+
+        const duplicates = holdings.slice(1);
+        await repository.remove(duplicates);
+
+        return primary;
+    }
+
+    private aggregatePortfolioHoldings(holdings: Holding[]): PortfolioHoldingDto[] {
+        const grouped = new Map<string, {
+            assetId: string;
+            quantity: number;
+            averageBuyPrice: number;
+        }>();
+
+        for (const holding of holdings) {
+            const assetId = holding.asset_id;
+            const quantity = Number(holding.quantity) || 0;
+            const averageBuyPrice = Number(holding.average_buy_price) || 0;
+            const existing = grouped.get(assetId);
+
+            if (!existing) {
+                grouped.set(assetId, {
+                    assetId,
+                    quantity,
+                    averageBuyPrice: quantity > 0 ? averageBuyPrice : 0,
+                });
+            } else {
+                const combinedQuantity = existing.quantity + quantity;
+                const combinedCost = (existing.averageBuyPrice * existing.quantity) + (averageBuyPrice * quantity);
+                grouped.set(assetId, {
+                    assetId,
+                    quantity: combinedQuantity,
+                    averageBuyPrice: combinedQuantity > 0 ? combinedCost / combinedQuantity : 0,
+                });
+            }
+        }
+
+        return Array.from(grouped.values()).map((group) => ({
+            assetId: group.assetId,
+            quantity: group.quantity,
+            averageBuyPrice: group.averageBuyPrice,
+            currentPrice: 0,
+            currentValue: 0,
+            profitLoss: 0,
+        }));
+    }
+
     async getPortfolio(userId: string): Promise<PortfolioHoldingDto[]>{
         const tradeServiceUrl = 'http://trading_service:3004/trade/prices'
         const holdings = await this.holdingRepository.find({where: {user_id: userId}})
@@ -44,14 +127,15 @@ export class HoldingService{
             for (const priceInfo of pricesData){
                 priceMap.set(priceInfo.assetId, priceInfo.price)
             }
-            const portfolioWithValues: PortfolioHoldingDto[] = holdings.map(holding =>{
-                const currentPrice = priceMap.get(holding.asset_id)||0;
-                const quantity = parseFloat(holding.quantity as any)
-                const averageBuyPrice = parseFloat(holding.average_buy_price as any);
+            const aggregatedHoldings = this.aggregatePortfolioHoldings(holdings);
+            const portfolioWithValues: PortfolioHoldingDto[] = aggregatedHoldings.map(holding =>{
+                const currentPrice = priceMap.get(holding.assetId)||0;
+                const quantity = holding.quantity;
+                const averageBuyPrice = holding.averageBuyPrice;
                 const currentValue = currentPrice*quantity;
                 const profitLoss = currentValue - (averageBuyPrice*quantity)
                 return {
-                    assetId: holding.asset_id,
+                    assetId: holding.assetId,
                     quantity: quantity,
                     averageBuyPrice: averageBuyPrice,
                     currentPrice: currentPrice,
@@ -67,7 +151,7 @@ export class HoldingService{
     }
 
     async updateHoldings(userId: string, assetId: string, quantityChange: number, tradePrice: number) {
-        const holding = await this.holdingRepository.findOne({ where: { user_id: userId, asset_id: assetId } });
+        const holding = await this.consolidateHoldingRows(userId, assetId);
         if (!holding) {
             // This is a new holding (first time buying this asset)
             if (quantityChange < 0) {
@@ -119,7 +203,7 @@ export class HoldingService{
             throw new BadRequestException('Mint quantity must be positive');
         }
 
-        const existing = await this.holdingRepository.findOne({ where: { user_id: userId, asset_id: assetId } });
+        const existing = await this.consolidateHoldingRows(userId, assetId);
         if (!existing) {
             const newHolding = this.holdingRepository.create({
                 user_id: userId,
@@ -139,60 +223,65 @@ export class HoldingService{
 
     // Freeze holdings when placing a sell order
     async freezeHoldings(userId: string, assetId: string, quantity: number): Promise<Holding>{
-        const holding = await this.holdingRepository.findOne({ where: { user_id: userId, asset_id: assetId } });
+        const holding = await this.consolidateHoldingRows(userId, assetId);
         if (!holding) {
             throw new BadRequestException("Holding not found for the specified asset.");
         }
         const quantityNum = Number(quantity);
-        if (holding.quantity < quantityNum){
+        this.logger.log(`freezeHoldings BEFORE user=${userId} asset=${assetId} quantity=${holding.quantity} frozen=${holding.frozen_quantity} willFreeze=${quantityNum}`);
+        if (Number(holding.quantity) < quantityNum){
             throw new BadRequestException("Insufficient holdings to freeze.");
         }
         holding.quantity = Number(holding.quantity) - quantityNum;
         holding.frozen_quantity = Number(holding.frozen_quantity) + quantityNum;
-        return await this.holdingRepository.save(holding);
+        const saved = await this.holdingRepository.save(holding);
+        this.logger.log(`freezeHoldings AFTER user=${userId} asset=${assetId} quantity=${saved.quantity} frozen=${saved.frozen_quantity}`);
+        return saved;
     }
 
     // Unfreeze holdings if order is cancelled or partially filled
     async unfreezeHoldings(userId: string, assetId: string, quantity: number): Promise<Holding>{
-        const holding = await this.holdingRepository.findOne({ where: { user_id: userId, asset_id: assetId } });
+        const holding = await this.consolidateHoldingRows(userId, assetId);
         if (!holding) {
             throw new BadRequestException("Holding not found for the specified asset.");
         }
         const quantityNum = Number(quantity);
-        if (holding.frozen_quantity < quantityNum){
-            throw new BadRequestException("Insufficient frozen holdings to unfreeze.");
+        this.logger.log(`unfreezeHoldings BEFORE user=${userId} asset=${assetId} quantity=${holding.quantity} frozen=${holding.frozen_quantity} willUnfreeze=${quantityNum}`);
+        const available = Number(holding.frozen_quantity);
+        if (available <= 0) {
+            this.logger.warn(`unfreezeHoldings: nothing to unfreeze for user=${userId} asset=${assetId}`);
+            return holding;
         }
-        holding.quantity = Number(holding.quantity) + quantityNum;
-        holding.frozen_quantity = Number(holding.frozen_quantity) - quantityNum;
-        return await this.holdingRepository.save(holding);
+        const toUnfreeze = Math.min(available, quantityNum);
+        if (toUnfreeze < quantityNum) {
+            this.logger.warn(`unfreezeHoldings: requested ${quantityNum} > available ${available}, unfreezing ${toUnfreeze} instead`);
+        }
+        holding.quantity = Number(holding.quantity) + toUnfreeze;
+        holding.frozen_quantity = Number(holding.frozen_quantity) - toUnfreeze;
+        const saved = await this.holdingRepository.save(holding);
+        this.logger.log(`unfreezeHoldings AFTER user=${userId} asset=${assetId} quantity=${saved.quantity} frozen=${saved.frozen_quantity}`);
+        return saved;
     }
 
     async settleTrade(buyerId: string, sellerId: string, assetId: string, quantity: number) {
         return this.entityManager.transaction(async (transactionalEntityManager) => {
-            const sellerHolding = await transactionalEntityManager.findOne(Holding, {
-                where: { user_id: sellerId, asset_id: assetId },
-                lock: { mode: 'pessimistic_write' }
-            });
-
-            const buyerHolding = await transactionalEntityManager.findOne(Holding, {
-                where: { user_id: buyerId, asset_id: assetId },
-                lock: { mode: 'pessimistic_write' }
-            });
-
+            const sellerHolding = await this.consolidateHoldingRows(sellerId, assetId, transactionalEntityManager);
             if (!sellerHolding) {
                 throw new NotFoundException('Seller holding not found for asset.');
             }
 
             const qty = Number(quantity);
-            if (Number(sellerHolding.frozen_quantity) < qty) {
+            const frozenAvailable = Number(sellerHolding.frozen_quantity || 0);
+            if (frozenAvailable < qty) {
                 throw new BadRequestException('Seller does not have enough frozen holdings to settle.');
             }
 
-            // Deduct from seller frozen, add to buyer available
-            sellerHolding.frozen_quantity = Number(sellerHolding.frozen_quantity) - qty;
+            sellerHolding.frozen_quantity = frozenAvailable - qty;
+            await transactionalEntityManager.save(sellerHolding);
 
+            const buyerHolding = await this.consolidateHoldingRows(buyerId, assetId, transactionalEntityManager);
             if (buyerHolding) {
-                buyerHolding.quantity = Number(buyerHolding.quantity) + qty;
+                buyerHolding.quantity = Number(buyerHolding.quantity || 0) + qty;
                 await transactionalEntityManager.save(buyerHolding);
             } else {
                 const newHolding = transactionalEntityManager.create(Holding, {
@@ -200,14 +289,60 @@ export class HoldingService{
                     asset_id: assetId,
                     quantity: qty,
                     frozen_quantity: 0,
-                    average_buy_price: 0
+                    average_buy_price: 0,
                 });
                 await transactionalEntityManager.save(newHolding);
             }
 
-            await transactionalEntityManager.save(sellerHolding);
-
             return { message: 'Trade settled successfully in portfolio.' };
         });
+    }
+
+    // Debug helper: return raw holdings for a user
+    async cleanupDuplicateHoldings() {
+        const holdings = await this.holdingRepository.find();
+        const grouped = new Map<string, Holding[]>();
+
+        for (const holding of holdings) {
+            const key = `${holding.user_id}:${holding.asset_id}`;
+            const group = grouped.get(key) || [];
+            group.push(holding);
+            grouped.set(key, group);
+        }
+
+        let cleanedGroups = 0;
+        let duplicatesRemoved = 0;
+
+        for (const [key, group] of grouped.entries()) {
+            if (group.length <= 1) continue;
+
+            cleanedGroups += 1;
+            let totalQuantity = 0;
+            let totalFrozen = 0;
+            let weightedCost = 0;
+
+            for (const holding of group) {
+                totalQuantity += Number(holding.quantity) || 0;
+                totalFrozen += Number(holding.frozen_quantity) || 0;
+                weightedCost += (Number(holding.quantity) || 0) * (Number(holding.average_buy_price) || 0);
+            }
+
+            const primary = group[0];
+            primary.quantity = totalQuantity;
+            primary.frozen_quantity = totalFrozen;
+            primary.average_buy_price = totalQuantity > 0 ? weightedCost / totalQuantity : 0;
+            await this.holdingRepository.save(primary);
+
+            const duplicates = group.slice(1);
+            await this.holdingRepository.remove(duplicates);
+            duplicatesRemoved += duplicates.length;
+        }
+
+        return { cleanedGroups, duplicatesRemoved };
+    }
+
+    // Debug helper: return raw holdings for a user
+    async getHoldingsForUser(userId: string) {
+        return this.holdingRepository.find({ where: { user_id: userId } });
     }
 }

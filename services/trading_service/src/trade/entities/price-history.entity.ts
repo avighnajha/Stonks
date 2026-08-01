@@ -9,6 +9,7 @@ export class PriceHistory{
     asset_id: string
 
     @Column()
+    @Column({ type: 'decimal', precision: 12, scale: 2 })
     price: number
 
     @CreateDateColumn()

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, Request, UseGuards, ValidationPipe, Logger } from "@nestjs/common";
+import { Body, Controller, Get, Patch, Post, Request, UseGuards, ValidationPipe, Logger, Param } from "@nestjs/common";
 import { HoldingService } from "./holding.service";
 import { AuthGuard } from "@nestjs/passport";
 import { InternalApiKeyGuard } from "src/auth/api_key.guard";
@@ -73,6 +73,20 @@ export class HoldingController{
         const { buyerId, sellerId, assetId, quantity } = settleDto;
         this.logger.log(`------>PORTFOLIO SERVICE Settling holdings for: ${buyerId} ${sellerId} ${assetId} qty=${quantity}`)
         return this.holdingService.settleTrade(buyerId, sellerId, assetId, quantity);
+    }
+
+    @Get('debug/:userId')
+    @UseGuards(InternalApiKeyGuard)
+    debugHoldings(@Param('userId') userId: string){
+        this.logger.log(`------>PORTFOLIO SERVICE Debug holdings for: ${userId}`);
+        return this.holdingService.getHoldingsForUser(userId);
+    }
+
+    @Post('cleanup-duplicates')
+    @UseGuards(InternalApiKeyGuard)
+    cleanupDuplicateHoldings(){
+        this.logger.log('------>PORTFOLIO SERVICE Cleaning up duplicate holdings rows');
+        return this.holdingService.cleanupDuplicateHoldings();
     }
 
     @Post('mint')
