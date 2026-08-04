@@ -16,10 +16,40 @@ const defaultImages: Record<string, string> = {
   'Artificial Intelligence': aiStock
 };
 
+const defaultEmojiMap: Record<string, string> = {
+  'Being a Hater': '😈',
+  'Jorts': '👖',
+  'Meme Energy': '⚡️',
+  'Dadcore': '🧢',
+  'Fleek': '✨',
+  'Kylian Mbappé': '⚽️',
+  'Elon Musk': '🚀',
+  'Artificial Intelligence': '🤖'
+};
+
+const emojiFallbacks = ['🔥','🌟','🚀','🎯','💎','✨','🧠','🦄','🌈','🎉','😎','👑'];
+const getEmojiFallback = (name: string) => {
+  const sum = Array.from(name).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return emojiFallbacks[sum % emojiFallbacks.length];
+};
+
+const getAssetImage = (asset: any) => {
+  if (asset.image) return asset.image;
+  if (asset.imageUrl) return asset.imageUrl;
+  if (defaultImages[asset.name]) return defaultImages[asset.name];
+  return '';
+};
+
+const getAssetEmoji = (asset: any) => {
+  if (asset.image || asset.imageUrl || defaultImages[asset.name]) return '';
+  return defaultEmojiMap[asset.name] || getEmojiFallback(asset.name || 'Concept');
+};
+
 type Asset = {
   id: string;
   name: string;
   image?: string;
+  fallbackEmoji: string;
   price?: number;
   change?: number;
   changePercent?: number;
@@ -34,6 +64,7 @@ const trendingData = {
       id: '1',
       name: 'Kylian Mbappé',
       image: mbappeStock,
+      fallbackEmoji: '⚽️',
       price: 142.50,
       change: 5.20,
       changePercent: 3.79,
@@ -45,6 +76,7 @@ const trendingData = {
       id: '3',
       name: 'Elon Musk',
       image: elonStock,
+      fallbackEmoji: '🚀',
       price: 256.75,
       change: 12.45,
       changePercent: 5.10,
@@ -56,6 +88,7 @@ const trendingData = {
       id: '4',
       name: 'Artificial Intelligence',
       image: aiStock,
+      fallbackEmoji: '🤖',
       price: 189.20,
       change: 8.90,
       changePercent: 4.93,
@@ -69,6 +102,7 @@ const trendingData = {
       id: '2', 
       name: 'Being a Hater',
       image: haterStock,
+      fallbackEmoji: '😈',
       price: 89.30,
       change: -2.10,
       changePercent: -2.30,
@@ -102,7 +136,8 @@ export const Trending = ({ onStockClick }: TrendingProps) => {
           return {
             id: a.id || a.assetId || String(idx),
             name: a.name || a.title || 'Unknown',
-            image: a.image || a.imageUrl || defaultImages[a.name] || '',
+            image: getAssetImage(a),
+            fallbackEmoji: getAssetEmoji(a) || getEmojiFallback(a.name || 'Concept'),
             price,
             change: Number(a.change ?? 0),
             changePercent: Number(a.changePercent ?? 0),

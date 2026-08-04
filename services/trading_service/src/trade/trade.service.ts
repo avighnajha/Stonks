@@ -130,6 +130,11 @@ export class TradeService {
             for (const counterOrder of counterOrders) {
                 if (order.remaining_quantity <= 0) break;
 
+                // Prevent self-matching on the order book
+                if (counterOrder.user_id === userId) {
+                    continue;
+                }
+
                 const isMarket = order.type === OrderType.MARKET || counterOrder.type === OrderType.MARKET;
                 const isMatch = isMarket
                     ? true
@@ -267,24 +272,7 @@ export class TradeService {
                 this.logger.warn(`Failed to publish order book update to Redis for asset ${assetId}: ${err?.message || err}`);
             }
 
-            // If original order was not fully filled, unfreeze the remaining portion and surface errors if unfreeze fails
-            if (order.remaining_quantity > 0 && order.status !== OrderStatus.FILLED) {
-                if (side === OrderSide.BUY) {
-                    const amountToUnfreeze = Number(order.remaining_quantity) * Number(order.price);
-                    try {
-                        await this.postWithRetry(this.walletBase + '/wallet/unfreeze', { userId, amount: amountToUnfreeze }, { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }, 3, 200);
-                    } catch (e) {
-                        throw new BadRequestException({ message: 'Failed to unfreeze remaining wallet funds for original BUY order', detail: e?.response?.data || e?.message || e });
-                    }
-                } else {
-                    try {
-                        await this.postWithRetry(this.portfolioBase + '/portfolio/unfreeze', { userId, assetId, quantity: Number(order.remaining_quantity) }, { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }, 3, 200);
-                    } catch (e) {
-                        throw new BadRequestException({ message: 'Failed to unfreeze remaining holdings for original SELL order', detail: e?.response?.data || e?.message || e });
-                    }
-                }
-            }
-
+            // Keep any partially or fully unfilled order open on the book.
             return { 
                 message: 'Order processed successfully.', 
                 status: order.status,

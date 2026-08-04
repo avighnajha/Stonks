@@ -112,11 +112,9 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
         const price = orderKind === 'LIMIT' ? Number(limitPrice) : currentPrice;
         const payload = { assetAmount, price, type: orderKind };
 
-        if (tradeType === 'buy') {
-          await tradingApi.buyAsset(stock.id, payload as any);
-        } else {
-          await tradingApi.sellAsset(stock.id, payload as any);
-        }
+        const response = tradeType === 'buy'
+          ? await tradingApi.buyAsset(stock.id, payload as any)
+          : await tradingApi.sellAsset(stock.id, payload as any);
 
         // Refresh portfolio and wallet, then notify listeners
         try {
@@ -141,10 +139,27 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
         // Emit event so Portfolio can refresh if open
         window.dispatchEvent(new CustomEvent('portfolio:updated'));
 
-        toast({
-          title: `${tradeType === 'buy' ? 'Bought' : 'Sold'}!`,
-          description: `${tradeType === 'buy' ? 'Purchased' : 'Sold'} $${amount} of ${stock.name}`,
-        });
+        const wasPlaced = response.status === 'OPEN' || response.status === 'PARTIALLY_FILLED';
+        const filled = Number(response.filledQuantity ?? 0);
+        const verb = tradeType === 'buy' ? 'Purchase' : 'Sale';
+
+        if (wasPlaced && filled === 0) {
+          toast({
+            title: 'Order placed',
+            description: `${verb} order for ${amount} ${stock.name} has been placed on the book.`,
+          });
+        } else if (wasPlaced && filled > 0) {
+          const remaining = assetAmount - filled;
+          toast({
+            title: 'Order partially filled',
+            description: `${verb} ${filled} ${stock.name} and placed ${remaining} on the order book.`,
+          });
+        } else {
+          toast({
+            title: `${tradeType === 'buy' ? 'Bought' : 'Sold'}!`,
+            description: `${tradeType === 'buy' ? 'Purchased' : 'Sold'} ${amount} of ${stock.name}.`,
+          });
+        }
 
         setTradeAmount('');
       } catch (err: any) {

@@ -1,4 +1,4 @@
-import { IsString, MaxLength, MinLength } from "class-validator";
+import { IsString, MaxLength, MinLength, IsUrl, IsOptional } from "class-validator";
 
 export class AssetDto {
    
@@ -7,7 +7,13 @@ export class AssetDto {
     @MaxLength(30)
     name: string;
 
+    @IsString()
+    @MinLength(5)
+    @MaxLength(240)
     description: string;
 
-    imageUrl: string;
+    @IsOptional()
+    @IsString()
+    @IsUrl({ require_tld: false })
+    imageUrl?: string;
 }

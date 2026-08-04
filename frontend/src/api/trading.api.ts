@@ -2,6 +2,9 @@ import axiosInstance from './axiosInstance';
 
 interface TradeResponse {
   message?: string;
+  status?: 'OPEN' | 'PARTIALLY_FILLED' | 'FILLED';
+  filledQuantity?: number;
+  orderId?: string;
 }
 
 type TradePayload = { assetAmount: number; price: number; type: 'MARKET' | 'LIMIT' };

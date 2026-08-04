@@ -17,11 +17,30 @@ const defaultImages: Record<string, string> = {
   'Artificial Intelligence': aiStock
 };
 
+const emojiFallbacks = ['🔥','🌟','🚀','🎯','💎','✨','🧠','🦄','🌈','🎉','😎','👑'];
+const getEmojiFallback = (name: string) => {
+  const sum = Array.from(name).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return emojiFallbacks[sum % emojiFallbacks.length];
+};
+
+const getAssetImage = (asset: any) => {
+  if (asset.image) return asset.image;
+  if (asset.imageUrl) return asset.imageUrl;
+  if (defaultImages[asset.name]) return defaultImages[asset.name];
+  return '';
+};
+
+const getAssetEmoji = (asset: any) => {
+  if (asset.image || asset.imageUrl || defaultImages[asset.name]) return '';
+  return getEmojiFallback(asset.name || 'Concept');
+};
+
 const trendingStocksFallback = [
   {
     id: '11111111-1111-1111-1111-111111111111',
     name: 'Kylian Mbappé',
     image: mbappeStock,
+    fallbackEmoji: '⚽️',
     price: 142.5,
     change: 5.2,
     changePercent: 3.79,
@@ -33,6 +52,7 @@ type Asset = {
   id: string;
   name: string;
   image?: string;
+  fallbackEmoji: string;
   price?: number;
   change?: number;
   changePercent?: number;
@@ -65,7 +85,8 @@ export const Explore = ({ onStockClick }: ExploreProps) => {
           return {
             id: a.id || a.assetId || String(a.name),
             name: a.name || a.title || 'Unknown',
-            image: a.image || a.imageUrl || defaultImages[a.name] || '',
+            image: getAssetImage(a),
+            fallbackEmoji: getAssetEmoji(a) || getEmojiFallback(a.name || 'Concept'),
             price,
             change: Number(a.change ?? 0),
             changePercent: Number(a.changePercent ?? 0),

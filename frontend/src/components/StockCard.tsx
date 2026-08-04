@@ -1,10 +1,12 @@
+import { useState } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface StockData {
   id: string;
   name: string;
-  image: string;
+  image?: string;
+  fallbackEmoji: string;
   price: number;
   change: number;
   changePercent: number;
@@ -38,6 +40,9 @@ export const StockCard = ({ stock, onClick }: StockCardProps) => {
     return `M ${points.join(' L ')}`;
   };
 
+  const [imgError, setImgError] = useState(false);
+  const shouldShowImage = Boolean(stock.image && !imgError && stock.image.startsWith('http'));
+
   return (
     <Card 
       className="bg-gradient-card border-border hover:bg-accent cursor-pointer transition-all duration-200 hover:shadow-card group"
@@ -46,11 +51,18 @@ export const StockCard = ({ stock, onClick }: StockCardProps) => {
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-3">
-            <img 
-              src={stock.image} 
-              alt={stock.name}
-              className="w-12 h-12 rounded-full object-cover border-2 border-border"
-            />
+            {shouldShowImage ? (
+              <img 
+                src={stock.image}
+                alt={stock.name}
+                onError={() => setImgError(true)}
+                className="w-12 h-12 rounded-full object-cover border-2 border-border"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full border-2 border-border bg-secondary flex items-center justify-center text-xl">
+                {stock.fallbackEmoji}
+              </div>
+            )}
             <div>
               <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
                 {stock.name}

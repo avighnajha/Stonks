@@ -34,10 +34,10 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
 
   const handleIPOSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.description) {
+    if (!formData.name || !formData.description || !formData.imageLink) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields, including an image URL.",
         variant: "destructive"
       });
       return;
@@ -48,7 +48,7 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
         const payload = {
           name: formData.name,
           description: formData.description,
-          imageUrl: formData.imageLink || null,
+          imageUrl: formData.imageLink,
         };
         // axiosInstance is not imported here; use fetch to avoid adding imports in this change
         const apiBase = import.meta.env.VITE_API_URL || '';
@@ -167,15 +167,18 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="image">Image Link (Optional)</Label>
+                    <Label htmlFor="image">Image Link</Label>
                     <Input
                       id="image"
                       type="url"
                       value={formData.imageLink}
                       onChange={(e) => setFormData({ ...formData, imageLink: e.target.value })}
-                      placeholder="https://example.com/image.jpg"
+                      placeholder="https://example.com/image.jpg (recommended)"
                       className="bg-background border-border"
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Image URL is recommended to help people identify your listing, but it is optional.
+                    </p>
                   </div>
                   <div className="flex space-x-2">
                     <Button type="submit" className="flex-1 bg-gradient-primary hover:opacity-90">
