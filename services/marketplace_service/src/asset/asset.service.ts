@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { Repository } from "typeorm";
 import { Asset, Status } from "./entities/asset.entity";
 import { AssetDto } from "./entities/asset.dto";
@@ -104,6 +104,20 @@ export class AssetService{
         }
 
         asset.status = Status.APPROVED;
+        return await this.assetRepository.save(asset);
+    }
+
+    async reject(assetId: string, adminUserId?: string): Promise<Asset> {
+        const asset = await this.assetRepository.findOne({where: {id: assetId}});
+        if (!asset) {
+            throw new NotFoundException(`Asset with id: ${assetId} not found`);
+        }
+
+        if (asset.status !== Status.PENDING) {
+            throw new BadRequestException(`Only pending assets can be rejected`);
+        }
+
+        asset.status = Status.REJECTED;
         return await this.assetRepository.save(asset);
     }
 }

@@ -122,9 +122,9 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
           {!showIPOForm ? (
             <Card className="bg-gradient-card border-border">
               <CardHeader>
-                <CardTitle className="text-lg">Issue IPO</CardTitle>
+                <CardTitle className="text-lg">Issue Listing</CardTitle>
                 <CardDescription>
-                  Create a new investment opportunity for others to invest in
+                  Create a new market idea for others to invest in
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -133,15 +133,15 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
                   className="w-full bg-gradient-primary hover:opacity-90"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Submit IPO
+                  Submit Listing
                 </Button>
               </CardContent>
             </Card>
           ) : (
             <Card className="bg-gradient-card border-border">
               <CardHeader>
-                <CardTitle className="text-lg">Submit IPO</CardTitle>
-                <CardDescription>Fill out the details for your IPO</CardDescription>
+                <CardTitle className="text-lg">Submit Listing</CardTitle>
+                <CardDescription>Fill out the details for your listing</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleIPOSubmit} className="space-y-4">
@@ -151,7 +151,7 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
                       id="name"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="e.g., Taylor Swift, Climate Change, etc."
+                      placeholder="e.g., Being a hater, Jorts, Meme Energy"
                       className="bg-background border-border"
                     />
                   </div>
@@ -161,7 +161,7 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
                       id="description"
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="Describe what people are investing in..."
+                      placeholder="Describe the concept or trend people are investing in..."
                       rows={3}
                       className="bg-background border-border"
                     />
@@ -179,7 +179,7 @@ export const ProfileModal = ({ open, onOpenChange }: ProfileModalProps) => {
                   </div>
                   <div className="flex space-x-2">
                     <Button type="submit" className="flex-1 bg-gradient-primary hover:opacity-90">
-                      Submit IPO
+                      Submit Listing
                     </Button>
                     <Button 
                       type="button" 

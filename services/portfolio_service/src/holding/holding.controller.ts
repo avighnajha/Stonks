@@ -39,7 +39,7 @@ export class HoldingController{
     @Get()
     @UseGuards(AuthGuard('jwt'))
     getPortfolio(@Request() req){
-        const {userId} = req.user.userId;
+        const userId = req.user && req.user.userId ? req.user.userId : null;
         return this.holdingService.getPortfolio(userId)
     }
 

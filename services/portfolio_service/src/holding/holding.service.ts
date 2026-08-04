@@ -7,6 +7,7 @@ import { HttpService } from "@nestjs/axios";
 
 class PortfolioHoldingDto {
     assetId: string;
+    name?: string;
     quantity: number;
     averageBuyPrice: number;
     currentPrice: number;
@@ -110,32 +111,54 @@ export class HoldingService{
 
     async getPortfolio(userId: string): Promise<PortfolioHoldingDto[]>{
         const tradeServiceUrl = 'http://trading_service:3004/trade/prices'
+        const assetServiceUrl = 'http://marketplace_service:3003/assets'
         const holdings = await this.holdingRepository.find({where: {user_id: userId}})
         const assetIds = holdings.map(holding=>holding.asset_id)
         try{
-            const response = await firstValueFrom(
-                this.httpService.post<{assetId:string; price: number}[]>(tradeServiceUrl,
-                    {assetIds: assetIds},
-                    {
+            this.logger.log(`getPortfolio: calling trade/prices with assetIds=${JSON.stringify(assetIds)}`);
+            const [pricesResponse, assetsResponse] = await Promise.all([
+                firstValueFrom(
+                    this.httpService.post<{assetId:string; price: number}[]>(tradeServiceUrl,
+                        {assetIds: assetIds},
+                        {
+                            headers:{'x-internal-api-key': process.env.INTERNAL_API_KEY}
+                        }
+                    )
+                ),
+                firstValueFrom(
+                    this.httpService.get<{id:string; name:string; initial_price?: number}[]>(`${assetServiceUrl}/approved`, {
                         headers:{'x-internal-api-key': process.env.INTERNAL_API_KEY}
-                    }
+                    })
                 )
-            )
-            const pricesData = response.data;
+            ]);
+
+            const pricesData = pricesResponse.data;
+            const assetsData = assetsResponse.data;
 
             const priceMap = new Map<string, number>();
             for (const priceInfo of pricesData){
                 priceMap.set(priceInfo.assetId, priceInfo.price)
             }
+
+            const assetNameMap = new Map<string, string>();
+            const assetInitialPriceMap = new Map<string, number>();
+            for (const assetInfo of assetsData) {
+                assetNameMap.set(assetInfo.id, assetInfo.name);
+                if (assetInfo.initial_price != null) {
+                    assetInitialPriceMap.set(assetInfo.id, Number(assetInfo.initial_price));
+                }
+            }
+
             const aggregatedHoldings = this.aggregatePortfolioHoldings(holdings);
             const portfolioWithValues: PortfolioHoldingDto[] = aggregatedHoldings.map(holding =>{
-                const currentPrice = priceMap.get(holding.assetId)||0;
+                const currentPrice = priceMap.get(holding.assetId) ?? assetInitialPriceMap.get(holding.assetId) ?? 0;
                 const quantity = holding.quantity;
                 const averageBuyPrice = holding.averageBuyPrice;
                 const currentValue = currentPrice*quantity;
                 const profitLoss = currentValue - (averageBuyPrice*quantity)
                 return {
                     assetId: holding.assetId,
+                    name: assetNameMap.get(holding.assetId) ?? holding.assetId,
                     quantity: quantity,
                     averageBuyPrice: averageBuyPrice,
                     currentPrice: currentPrice,

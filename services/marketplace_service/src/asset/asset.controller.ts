@@ -45,4 +45,13 @@ export class AssetController{
         this.logger.log(`Approving asset: ${id} by admin: ${adminUserId}`);
         return this.assetService.approve(id, dto, adminUserId);
     }
+
+    @Patch(':id/reject')
+    @Roles(UserRole.ADMIN)
+    @UseGuards(AuthGuard('jwt'), RolesGuard)
+    reject(@Param('id', ParseUUIDPipe) id: string, @Request() req){
+        const adminUserId = req.user?.userId;
+        this.logger.log(`Rejecting asset: ${id} by admin: ${adminUserId}`);
+        return this.assetService.reject(id, adminUserId);
+    }
 }

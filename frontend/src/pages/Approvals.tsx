@@ -53,11 +53,36 @@ export const Approvals = () => {
     }
   };
 
+  const submitReject = async () => {
+    if (!selected) return;
+    try {
+      await axiosInstance.patch(`/assets/${selected.id}/reject`);
+      toast({ title: 'Rejected', description: `${selected.name} has been rejected.` });
+      close();
+      fetchAssets();
+    } catch (e: any) {
+      toast({ title: 'Rejection failed', description: e?.response?.data?.message || e.message || String(e), variant: 'destructive' });
+    }
+  };
+
+  const rejectAsset = async (asset: any) => {
+    try {
+      await axiosInstance.patch(`/assets/${asset.id}/reject`);
+      toast({ title: 'Rejected', description: `${asset.name} has been rejected.` });
+      if (selected?.id === asset.id) {
+        close();
+      }
+      fetchAssets();
+    } catch (e: any) {
+      toast({ title: 'Rejection failed', description: e?.response?.data?.message || e.message || String(e), variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-6">
       <Card className="bg-gradient-card border-border">
         <CardHeader>
-          <CardTitle>Pending Approvals</CardTitle>
+          <CardTitle>Pending Listings</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -74,6 +99,7 @@ export const Approvals = () => {
                   </div>
                   <div className="flex items-center space-x-2">
                     <Button onClick={() => openApprove(a)} className="bg-primary">Approve</Button>
+                    <Button variant="outline" onClick={() => rejectAsset(a)} className="text-destructive border-destructive hover:bg-destructive/10">Reject</Button>
                   </div>
                 </div>
               ))}
@@ -85,7 +111,7 @@ export const Approvals = () => {
       <Dialog open={!!selected} onOpenChange={(v) => { if (!v) close(); }}>
         <DialogContent className="max-w-md bg-secondary border-border">
           <DialogHeader>
-            <DialogTitle>Approve {selected?.name}</DialogTitle>
+            <DialogTitle>Review {selected?.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -101,7 +127,8 @@ export const Approvals = () => {
               <Input value={form.creatorPercentage} onChange={(e) => setForm({...form, creatorPercentage: e.target.value})} />
             </div>
             <div className="flex space-x-2">
-              <Button onClick={submitApprove} className="flex-1 bg-gradient-primary">Submit</Button>
+              <Button onClick={submitApprove} className="flex-1 bg-gradient-primary">Approve</Button>
+              <Button variant="outline" onClick={submitReject} className="flex-1 text-destructive border-destructive hover:bg-destructive/10">Reject</Button>
               <Button variant="outline" onClick={close} className="flex-1">Cancel</Button>
             </div>
           </div>

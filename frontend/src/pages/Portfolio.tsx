@@ -47,28 +47,48 @@ export const Portfolio = () => {
       setLoading(true);
       try {
         const res = await axiosInstance.get(`/portfolio`);
-        const data = res.data || {};
+        const data = res.data || [];
         if (!mounted) return;
-        // map data defensively
+
+        const positions = Array.isArray(data)
+          ? data.map((p: any) => {
+              const shares = Number(p.quantity ?? 0);
+              const avgPrice = Number(p.averageBuyPrice ?? 0);
+              const currentPrice = Number(p.currentPrice ?? 0);
+              const invested = avgPrice * shares;
+              const currentValue = Number(p.currentValue ?? currentPrice * shares);
+              const gainLoss = currentValue - invested;
+              const gainLossPercent = invested !== 0 ? (gainLoss / invested) * 100 : 0;
+
+              return {
+                id: p.assetId || p.id || `${p.assetId}-${Math.random()}`,
+                name: p.name || p.assetName || p.assetId || 'Unknown',
+                image: p.image || '',
+                shares,
+                avgPrice,
+                currentPrice,
+                invested,
+                currentValue,
+                gainLoss,
+                gainLossPercent,
+              };
+            })
+          : [];
+
+        const totalValue = positions.reduce((sum, position) => sum + position.currentValue, 0);
+        const totalInvested = positions.reduce((sum, position) => sum + position.invested, 0);
+        const totalGainLoss = positions.reduce((sum, position) => sum + position.gainLoss, 0);
+        const totalGainLossPercent = totalInvested !== 0 ? (totalGainLoss / totalInvested) * 100 : 0;
+
         const mapped: PortfolioData = {
-          totalValue: data.totalValue ?? 0,
-          totalInvested: data.totalInvested ?? 0,
-          totalGainLoss: data.totalGainLoss ?? 0,
-          totalGainLossPercent: data.totalGainLossPercent ?? 0,
-          availableBalance: data.availableBalance ?? data.cash ?? 0,
-          positions: (data.positions || []).map((p: any) => ({
-            id: p.id || p.assetId,
-            name: p.name || p.assetName,
-            image: p.image || '',
-            shares: p.shares ?? p.quantity ?? 0,
-            avgPrice: p.avgPrice ?? p.costBasis ?? 0,
-            currentPrice: p.currentPrice ?? p.price ?? 0,
-            invested: p.invested ?? 0,
-            currentValue: p.currentValue ?? ((p.currentPrice ?? p.price ?? 0) * (p.shares ?? p.quantity ?? 0)),
-            gainLoss: p.gainLoss ?? 0,
-            gainLossPercent: p.gainLossPercent ?? 0
-          }))
+          totalValue,
+          totalInvested,
+          totalGainLoss,
+          totalGainLossPercent,
+          availableBalance: user?.balance ?? 0,
+          positions,
         };
+
         setPortfolioData(mapped);
       } catch (err) {
         // keep empty
