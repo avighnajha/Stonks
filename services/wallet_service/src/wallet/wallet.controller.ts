@@ -76,4 +76,10 @@ export class WalletController {
         const { buyerId, sellerId, amount } = settleTradeDto;
         return this.walletService.settleTrade(buyerId, sellerId, amount);
     }
+
+    @Get('admin/all')
+    @UseGuards(InternalApiKeyGuard)
+    async getAllWallets(){
+        return this.walletService.getAllWallets();
+    }
 }

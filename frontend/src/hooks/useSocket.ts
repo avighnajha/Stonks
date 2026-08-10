@@ -7,7 +7,12 @@ export default function useSocket() {
   useEffect(() => {
     const base = import.meta.env.VITE_API_URL || '';
     const url = base ? `${base.replace(/\/$/, '')}/market` : '/market';
-    const s = io(url, { path: '/socket.io', transports: ['websocket', 'polling'] });
+    const token = localStorage.getItem('authToken');
+    const s = io(url, {
+      path: '/socket.io',
+      transports: ['websocket', 'polling'],
+      auth: { token },
+    });
     setSocket(s);
 
     s.on('connect', () => {
@@ -15,12 +20,10 @@ export default function useSocket() {
     });
 
     s.on('connect_error', (err) => {
-      // optionally handle connect errors
       console.warn('Socket connect error', err);
     });
 
     s.on('disconnect', (reason) => {
-      // handle disconnect reason if needed
       console.debug('Socket disconnected', reason);
     });
 

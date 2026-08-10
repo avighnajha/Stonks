@@ -78,6 +78,13 @@ export class UserService {
             }
         };
     }
+
+    async getAllUsers() {
+        return this.userRepository.find({
+            select: ['id', 'email', 'username', 'role'],
+        });
+    }
+
     async login(loginUserDto: LoginUserDTO){
         const {email, password} = loginUserDto;
         const foundUser = await this.userRepository.findOne({where:{email}});

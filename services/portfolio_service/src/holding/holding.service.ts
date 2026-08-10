@@ -368,4 +368,8 @@ export class HoldingService{
     async getHoldingsForUser(userId: string) {
         return this.holdingRepository.find({ where: { user_id: userId } });
     }
+
+    async getAllHoldings() {
+        return this.holdingRepository.find();
+    }
 }

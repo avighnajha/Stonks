@@ -1,7 +1,8 @@
-import {Controller, Post, Body, Get, ValidationPipe, HttpCode, HttpStatus, Logger} from '@nestjs/common'
+import {Controller, Post, Body, Get, ValidationPipe, HttpCode, HttpStatus, Logger, UseGuards} from '@nestjs/common'
 import {UserService} from './user.service';
 import { CreateUserDto } from './dto/create_user.dto';
 import { LoginUserDTO } from './dto/login_user.dto';
+import { InternalApiKeyGuard } from 'src/auth/api_key.guard';
 
 @Controller('auth')
 export class UserController {
@@ -19,5 +20,11 @@ export class UserController {
     login(@Body(ValidationPipe) loginUserDto: LoginUserDTO){
         this.logger.log('User logging in')
         return this.userService.login(loginUserDto)
+    }
+
+    @Get('admin/users')
+    @UseGuards(InternalApiKeyGuard)
+    async getAdminUsers() {
+        return this.userService.getAllUsers();
     }
 }

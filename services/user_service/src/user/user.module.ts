@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { User } from './entities/user.entity';
 import { HttpModule } from '@nestjs/axios';
+import { InternalApiKeyGuard } from '../auth/api_key.guard';
 
 @Module({
     imports: [
@@ -16,7 +17,7 @@ import { HttpModule } from '@nestjs/axios';
         HttpModule
     ],
     controllers: [UserController],
-    providers: [UserService],
+    providers: [UserService, InternalApiKeyGuard],
 })
 
 export class UserModule {}

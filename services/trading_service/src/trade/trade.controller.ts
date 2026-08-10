@@ -104,4 +104,22 @@ export class TradeController {
         const { userId, assetAmount, price, type } = internalDto;
         return this.tradeService.placeOrder(assetId, userId, 'BUY', type, price, assetAmount);
     }
+
+    @Get('admin/market-stats')
+    @UseGuards(InternalApiKeyGuard)
+    async getAdminMarketStats(){
+        return this.tradeService.getMarketStats();
+    }
+
+    @Get('admin/all-trades')
+    @UseGuards(InternalApiKeyGuard)
+    async getAdminAllTrades(){
+        return this.tradeService.getAllTrades();
+    }
+
+    @Get('admin/order-book/:assetId')
+    @UseGuards(InternalApiKeyGuard)
+    async getAdminOrderBook(@Param('assetId', ParseUUIDPipe) assetId: string){
+        return this.tradeService.getOrderBookSnapshot(assetId);
+    }
 }

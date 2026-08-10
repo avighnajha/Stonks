@@ -44,8 +44,8 @@ export class RedisService {
     }
   }
 
-  async publishOrderBookUpdate(assetId: string) {
-    const payload = JSON.stringify({ assetId, timestamp: Date.now() });
+  async publishOrderBookUpdate(assetId: string, book: { buys: any[]; sells: any[] }) {
+    const payload = JSON.stringify({ type: 'ORDER_BOOK_UPDATE', assetId, book, timestamp: Date.now() });
     try {
       if (!this.client) throw new Error('Redis client not initialized');
       await this.client.publish('ORDER_BOOK_EVENTS', payload);

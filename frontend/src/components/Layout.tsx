@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { User, TrendingUp, PieChart, Search, LogIn } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { User, TrendingUp, PieChart, Search, LogIn, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProfileModal } from './ProfileModal';
 import { LoginModal } from './LoginModal';
@@ -41,16 +42,27 @@ export const Layout = ({ children, activeTab, onTabChange }: LayoutProps) => {
               InvestPeople
             </h1>
           </div>
-          {isAuthenticated? (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={()=>setIsProfileOpen(true)}
-            className="bg-secondary border-border hover:bg-accent"
-          >
-            <User className="h-4 w-4 mr-2" />
-            Profile
-          </Button>) : (
+          {isAuthenticated ? (
+            <div className="flex items-center gap-2">
+              {user?.role === 'admin' ? (
+                <Link to="/admin">
+                  <Button variant="secondary" size="sm" className="border-border bg-secondary hover:bg-accent">
+                    <ShieldCheck className="h-4 w-4 mr-2" />
+                    Admin
+                  </Button>
+                </Link>
+              ) : null}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={()=>setIsProfileOpen(true)}
+                className="bg-secondary border-border hover:bg-accent"
+              >
+                <User className="h-4 w-4 mr-2" />
+                Profile
+              </Button>
+            </div>
+          ) : (
             <Button 
               variant="outline" 
               size="sm" 

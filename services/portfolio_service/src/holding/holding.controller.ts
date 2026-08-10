@@ -96,4 +96,10 @@ export class HoldingController{
         this.logger.log(`------>PORTFOLIO SERVICE Minting holdings for: ${userId} ${assetId} qty=${quantity}`)
         return this.holdingService.mintHolding(userId, assetId, quantity);
     }
+
+    @Get('admin/all')
+    @UseGuards(InternalApiKeyGuard)
+    async getAllHoldings(){
+        return this.holdingService.getAllHoldings();
+    }
 }

@@ -111,4 +111,8 @@ export class WalletService{
             return { message: 'Trade settled successfully in wallets.' };
         });
     }
+
+    async getAllWallets() {
+        return this.walletRepository.find();
+    }
 }

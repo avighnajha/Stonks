@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException, Logger } from "@nestjs/common";
 import * as fs from 'fs';
 import { InjectRepository } from "@nestjs/typeorm";
-import { EntityManager, In, Repository } from "typeorm";
+import { EntityManager, In, MoreThan, Repository } from "typeorm";
 import { firstValueFrom } from "rxjs";
 import { HttpService } from "@nestjs/axios";
 import { PriceHistory } from "./entities/price-history.entity";
@@ -29,6 +29,8 @@ export class TradeService {
         private readonly priceHistoryRepository: Repository<PriceHistory>,
         @InjectRepository(LiquidityPool)
         private readonly liquidityPoolRepository: Repository<LiquidityPool>,
+        @InjectRepository(Order)
+        private readonly orderRepository: Repository<Order>,
         private readonly httpService: HttpService,
         private readonly entityManager: EntityManager,
         private readonly redisService: RedisService,
@@ -81,7 +83,7 @@ export class TradeService {
     }
 
     async placeOrder(assetId: string, userId: string, side: string, type: OrderType, price: number, quantity: number) {
-        return this.entityManager.transaction(async (transactionalEntityManager) => {
+        const result = await this.entityManager.transaction(async (transactionalEntityManager) => {
             // Freeze
             try {
                     if (side === OrderSide.BUY) {
@@ -265,13 +267,6 @@ export class TradeService {
             // Save state of the original order after the matching loop
             await transactionalEntityManager.save(order);
 
-            // Publish order book update to Redis (orders changed)
-            try {
-                await this.redisService.publishOrderBookUpdate(assetId);
-            } catch (err) {
-                this.logger.warn(`Failed to publish order book update to Redis for asset ${assetId}: ${err?.message || err}`);
-            }
-
             // Keep any partially or fully unfilled order open on the book.
             return { 
                 message: 'Order processed successfully.', 
@@ -279,7 +274,131 @@ export class TradeService {
                 filledQuantity: quantity - order.remaining_quantity,
                 orderId: order.id
             };
-        })}
+        });
+
+        try {
+            await this.publishOrderBookSnapshot(assetId);
+        } catch (err) {
+            this.logger.warn(`Failed to publish order book snapshot to Redis for asset ${assetId}: ${err?.message || err}`);
+        }
+
+        return result;
+    }
+
+    async getOrderBookSnapshot(assetId: string) {
+        const buys = await this.orderRepository.find({
+            where: {
+                asset_id: assetId,
+                side: OrderSide.BUY,
+                status: In([OrderStatus.OPEN, OrderStatus.PARTIALLY_FILLED]),
+            },
+            order: { price: 'DESC', created_at: 'ASC' },
+            take: 15,
+        });
+
+        const sells = await this.orderRepository.find({
+            where: {
+                asset_id: assetId,
+                side: OrderSide.SELL,
+                status: In([OrderStatus.OPEN, OrderStatus.PARTIALLY_FILLED]),
+            },
+            order: { price: 'ASC', created_at: 'ASC' },
+            take: 15,
+        });
+
+        return { buys, sells };
+    }
+
+    async publishOrderBookSnapshot(assetId: string) {
+        const book = await this.getOrderBookSnapshot(assetId);
+        await this.redisService.publishOrderBookUpdate(assetId, book);
+    }
+
+    async getAllTrades() {
+        return this.tradeRepository.find({
+            order: { timestamp: 'DESC' },
+            take: 100,
+        });
+    }
+
+    async getMarketStats() {
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const recentTrades = await this.tradeRepository.find({
+            where: { timestamp: MoreThan(since) },
+        });
+
+        const volumeByAsset = new Map<string, number>();
+        for (const trade of recentTrades) {
+            const assetId = trade.asset_id;
+            const tradeVolume = Number(trade.price) * Number(trade.quantity);
+            volumeByAsset.set(assetId, (volumeByAsset.get(assetId) || 0) + tradeVolume);
+        }
+
+        const assetIds = Array.from(new Set(recentTrades.map((trade) => trade.asset_id)));
+
+        const lastPrices = new Map<string, number>();
+        const previousPrices = new Map<string, number>();
+
+        if (assetIds.length > 0) {
+            const latestPricesRaw = await this.tradeRepository.createQueryBuilder('trade')
+                .select(['trade.asset_id as asset_id', 'trade.price as price'])
+                .where('trade.asset_id IN (:...assetIds)', { assetIds })
+                .orderBy('trade.asset_id', 'ASC')
+                .addOrderBy('trade.timestamp', 'DESC')
+                .getRawMany();
+
+            for (const row of latestPricesRaw) {
+                if (!lastPrices.has(row.asset_id)) {
+                    lastPrices.set(row.asset_id, Number(row.price));
+                }
+            }
+
+            const previousPricesRaw = await this.priceHistoryRepository.createQueryBuilder('ph')
+                .select(['ph.asset_id as asset_id', 'ph.price as price'])
+                .where('ph.asset_id IN (:...assetIds)', { assetIds })
+                .andWhere('ph.timestamp <= :since', { since })
+                .orderBy('ph.asset_id', 'ASC')
+                .addOrderBy('ph.timestamp', 'DESC')
+                .getRawMany();
+
+            for (const row of previousPricesRaw) {
+                if (!previousPrices.has(row.asset_id)) {
+                    previousPrices.set(row.asset_id, Number(row.price));
+                }
+            }
+        }
+
+        const totalVolume = Array.from(volumeByAsset.values()).reduce((sum, v) => sum + v, 0);
+
+        const topByVolume = Array.from(volumeByAsset.entries())
+            .map(([assetId, volume]) => ({ assetId, volume }))
+            .sort((a, b) => b.volume - a.volume)
+            .slice(0, 5);
+
+        const gainersAndLosers = Array.from(lastPrices.entries()).map(([assetId, lastPrice]) => {
+            const previousPrice = previousPrices.get(assetId) ?? lastPrice;
+            const change = lastPrice - previousPrice;
+            const percentChange = previousPrice > 0 ? (change / previousPrice) * 100 : 0;
+            return { assetId, currentPrice: lastPrice, previousPrice, change, percentChange };
+        });
+
+        const gainers = gainersAndLosers
+            .filter((item) => item.previousPrice > 0)
+            .sort((a, b) => b.percentChange - a.percentChange)
+            .slice(0, 5);
+
+        const losers = gainersAndLosers
+            .filter((item) => item.previousPrice > 0)
+            .sort((a, b) => a.percentChange - b.percentChange)
+            .slice(0, 5);
+
+        return {
+            volume24h: totalVolume,
+            topAssetsByVolume: topByVolume,
+            topGainers: gainers,
+            topLosers: losers,
+        };
+    }
 
     async getPrices(assetIds: string[]): Promise<{ assetId: string; price: number }[]> {
         if (assetIds.length === 0) return [];
