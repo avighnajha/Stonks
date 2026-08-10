@@ -16,6 +16,6 @@ export const getAdminOrderBook = async (assetId: string) => {
 };
 
 export const getAdminAllTrades = async () => {
-  const response = await axiosInstance.get('/trade/admin/all-trades');
+  const response = await axiosInstance.get('/admin/all-trades');
   return response.data;
 };

@@ -48,6 +48,11 @@ export class AdminController {
     return this.internalGet(`${this.tradingServiceUrl}/trade/admin/order-book/${assetId}`);
   }
 
+  @Get('all-trades')
+  async allTrades() {
+    return this.internalGet(`${this.tradingServiceUrl}/trade/admin/all-trades`);
+  }
+
   @Get('leaderboard')
   async leaderboard() {
     const [users, wallets, holdings] = await Promise.all([
