@@ -33,8 +33,15 @@ export class TradeService {
         private readonly orderRepository: Repository<Order>,
         private readonly httpService: HttpService,
         private readonly entityManager: EntityManager,
-        private readonly redisService: RedisService,
-    ){}
+        private readonly redisService: RedisService
+    ){
+        // Schedule cleanup every 24 hours
+        setInterval(() => {
+            this.cleanupOldPriceHistory().catch(err => {
+                this.logger.error('Failed to cleanup old price history', err);
+            });
+        }, 24 * 60 * 60 * 1000);
+    }
 
     private async postWithRetry(url: string, payload: any, options: any = {}, attempts = 3, baseDelayMs = 200) {
         let lastErr: any = null;
@@ -61,11 +68,106 @@ export class TradeService {
         return { price: lastTrade ? lastTrade.price : 0 };
     }
 
-    async getHistory(assetId: string){
-        return this.priceHistoryRepository.find({
-            where:{ asset_id: assetId },
-            order: { timestamp: 'ASC' }
+    async getHistory(assetId: string, timeframe?: string, days?: number){
+        const daysToFetch = days || 3;
+        const since = new Date();
+        since.setDate(since.getDate() - daysToFetch);
+
+        const query = this.priceHistoryRepository.createQueryBuilder('ph')
+            .where('ph.asset_id = :assetId', { assetId })
+            .andWhere('ph.timestamp >= :since', { since })
+            .orderBy('ph.timestamp', 'ASC');
+
+        // If no timeframe, return raw data
+        if (!timeframe) {
+            return await query.getMany();
+        }
+
+        // Parse timeframe (e.g., '5m', '1h', '1d')
+        const timeframeMs = this.parseTimeframe(timeframe);
+        const rawData = await query.getMany();
+
+        // Aggregate data by timeframe
+        return this.aggregateByTimeframe(rawData, timeframeMs);
+    }
+
+    private parseTimeframe(timeframe: string): number {
+        const match = timeframe.match(/^(\d+)([mhd])$/);
+        if (!match) return 300000; // Default 5 minutes
+
+        const value = parseInt(match[1]);
+        const unit = match[2];
+
+        switch (unit) {
+            case 'm': return value * 60 * 1000;
+            case 'h': return value * 60 * 60 * 1000;
+            case 'd': return value * 24 * 60 * 60 * 1000;
+            default: return 300000;
+        }
+    }
+
+    private aggregateByTimeframe(data: any[], intervalMs: number): any[] {
+        if (data.length === 0) return [];
+
+        const aggregated: any[] = [];
+        let currentInterval = Math.floor(data[0].timestamp.getTime() / intervalMs) * intervalMs;
+        let open = data[0].price;
+        let high = data[0].price;
+        let low = data[0].price;
+        let close = data[0].price;
+
+        for (let i = 1; i < data.length; i++) {
+            const point = data[i];
+            const pointTime = point.timestamp.getTime();
+            const pointInterval = Math.floor(pointTime / intervalMs) * intervalMs;
+
+            if (pointInterval !== currentInterval) {
+                // Push previous interval
+                aggregated.push({
+                    timestamp: new Date(currentInterval),
+                    open,
+                    high,
+                    low,
+                    close
+                });
+
+                // Start new interval
+                currentInterval = pointInterval;
+                open = point.price;
+                high = point.price;
+                low = point.price;
+                close = point.price;
+            } else {
+                // Update current interval
+                high = Math.max(high, point.price);
+                low = Math.min(low, point.price);
+                close = point.price;
+            }
+        }
+
+        // Push last interval
+        aggregated.push({
+            timestamp: new Date(currentInterval),
+            open,
+            high,
+            low,
+            close
         });
+
+        return aggregated;
+    }
+
+    async cleanupOldPriceHistory() {
+        const threeDaysAgo = new Date();
+        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+        const result = await this.priceHistoryRepository
+            .createQueryBuilder('ph')
+            .delete()
+            .where('ph.timestamp < :threeDaysAgo', { threeDaysAgo })
+            .execute();
+
+        this.logger.log(`Cleaned up ${result.affected} old price history records`);
     }
 
     async createPool(assetId: string) {
@@ -286,6 +388,8 @@ export class TradeService {
     }
 
     async getOrderBookSnapshot(assetId: string) {
+        this.logger.log(`Fetching order book for asset ${assetId}`);
+
         const buys = await this.orderRepository.find({
             where: {
                 asset_id: assetId,
@@ -306,6 +410,8 @@ export class TradeService {
             take: 15,
         });
 
+        this.logger.log(`Order book for ${assetId}: ${buys.length} buys, ${sells.length} sells`);
+
         return { buys, sells };
     }
 
@@ -315,10 +421,12 @@ export class TradeService {
     }
 
     async getAllTrades() {
-        return this.tradeRepository.find({
+        const trades = await this.tradeRepository.find({
             order: { timestamp: 'DESC' },
             take: 100,
         });
+        this.logger.log(`Found ${trades.length} total trades`);
+        return trades;
     }
 
     async getMarketStats() {
@@ -326,6 +434,8 @@ export class TradeService {
         const recentTrades = await this.tradeRepository.find({
             where: { timestamp: MoreThan(since) },
         });
+
+        this.logger.log(`Found ${recentTrades.length} trades in last 24 hours`);
 
         const volumeByAsset = new Map<string, number>();
         for (const trade of recentTrades) {
@@ -335,6 +445,7 @@ export class TradeService {
         }
 
         const assetIds = Array.from(new Set(recentTrades.map((trade) => trade.asset_id)));
+        this.logger.log(`Unique assets with recent trades: ${assetIds.length}`);
 
         const lastPrices = new Map<string, number>();
         const previousPrices = new Map<string, number>();

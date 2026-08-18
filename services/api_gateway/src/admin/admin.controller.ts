@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Param, UseGuards, BadRequestException, Body, Query } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { AuthGuard } from '@nestjs/passport';
@@ -15,18 +15,25 @@ export class AdminController {
   private readonly portfolioServiceUrl = process.env.PORTFOLIO_SERVICE_URL || 'http://portfolio_service:3005';
   private readonly tradingServiceUrl = process.env.TRADING_SERVICE_URL || 'http://trading_service:3004';
   private readonly internalHeaders = {
-    'x-internal-api-key': process.env.INTERNAL_API_KEY || 'a-very-secret-internal-key',
+    'x-internal-api-key': process.env.INTERNAL_API_KEY || 'change_me_internal_key',
   };
 
   constructor(private readonly httpService: HttpService) {}
 
   private async internalGet<T>(url: string) {
-    const response = await firstValueFrom(
-      this.httpService.get<T>(url, {
-        headers: this.internalHeaders,
-      }),
-    );
-    return response.data;
+    console.log(`[AdminController] Internal GET to: ${url}`);
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<T>(url, {
+          headers: this.internalHeaders,
+        }),
+      );
+      console.log(`[AdminController] Success from: ${url}`);
+      return response.data;
+    } catch (error) {
+      console.error(`[AdminController] Error from ${url}:`, error.message);
+      throw error;
+    }
   }
 
   private async internalPost<T>(url: string, payload: any) {
@@ -51,6 +58,12 @@ export class AdminController {
   @Get('all-trades')
   async allTrades() {
     return this.internalGet(`${this.tradingServiceUrl}/trade/admin/all-trades`);
+  }
+
+  @Get('price-history/:assetId')
+  async priceHistory(@Param('assetId') assetId: string, @Query('timeframe') timeframe?: string) {
+    const url = `${this.tradingServiceUrl}/trade/history/${assetId}${timeframe ? `?timeframe=${timeframe}` : ''}`;
+    return this.internalGet(url);
   }
 
   @Get('leaderboard')

@@ -27,4 +27,10 @@ export class UserController {
     async getAdminUsers() {
         return this.userService.getAllUsers();
     }
+
+    @Post('admin/make-admin')
+    @UseGuards(InternalApiKeyGuard)
+    async makeAdmin(@Body() body: { email: string }) {
+        return this.userService.makeUserAdmin(body.email);
+    }
 }

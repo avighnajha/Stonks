@@ -44,7 +44,7 @@ export const Layout = ({ children, activeTab, onTabChange }: LayoutProps) => {
           </div>
           {isAuthenticated ? (
             <div className="flex items-center gap-2">
-              {user?.role === 'admin' ? (
+              {user?.role && user.role.toLowerCase() === 'admin' ? (
                 <Link to="/admin">
                   <Button variant="secondary" size="sm" className="border-border bg-secondary hover:bg-accent">
                     <ShieldCheck className="h-4 w-4 mr-2" />

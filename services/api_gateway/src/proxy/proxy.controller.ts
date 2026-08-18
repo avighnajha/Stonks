@@ -12,14 +12,16 @@ export class ProxyController {
   @All('*')
   @UseGuards(AuthGuard('jwt'))
   async proxyRequest(@Request() req, @Response() res) {
+    console.log(`[ProxyController] Received request: ${req.method} ${req.originalUrl}`);
     const recipientServiceUrl = this.getRecipientServiceUrl(req.originalUrl);
 
     if (!recipientServiceUrl) {
+      console.log(`[ProxyController] No service found for: ${req.originalUrl}`);
       return res.status(502).json({ message: 'Cannot process request: service not found' });
     }
 
     const { method, originalUrl, headers, body } = req;
-    
+
     // Forward the user's JWT and other important headers
     const forwardedHeaders = {
       'Content-Type': headers['content-type'] || 'application/json',
@@ -37,6 +39,7 @@ export class ProxyController {
       );
       res.status(response.status).json(response.data);
     } catch (error) {
+      console.error(`[ProxyController] Error proxying request:`, error.message);
       res.status(error.response?.status || 500).json(error.response?.data || 'Internal server error');
     }
   }

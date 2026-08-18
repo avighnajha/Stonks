@@ -19,3 +19,14 @@ export const getAdminAllTrades = async () => {
   const response = await axiosInstance.get('/admin/all-trades');
   return response.data;
 };
+
+export const getAdminPriceHistory = async (assetId: string, timeframe?: string) => {
+  const url = `/admin/price-history/${assetId}${timeframe ? `?timeframe=${timeframe}` : ''}`;
+  const response = await axiosInstance.get(url);
+  return response.data;
+};
+
+export const getApprovedAssets = async () => {
+  const response = await axiosInstance.get('/assets/approved');
+  return response.data;
+};

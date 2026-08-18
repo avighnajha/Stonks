@@ -85,6 +85,17 @@ export class UserService {
         });
     }
 
+    async makeUserAdmin(email: string) {
+        const user = await this.userRepository.findOne({ where: { email } });
+        if (!user) {
+            throw new UnauthorizedException('User not found');
+        }
+        user.role = 'admin';
+        await this.userRepository.save(user);
+        this.logger.log(`User ${email} promoted to admin`);
+        return { message: 'User promoted to admin', email, role: user.role };
+    }
+
     async login(loginUserDto: LoginUserDTO){
         const {email, password} = loginUserDto;
         const foundUser = await this.userRepository.findOne({where:{email}});

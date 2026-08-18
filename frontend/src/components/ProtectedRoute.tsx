@@ -22,11 +22,16 @@ export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) 
   }
 
   if (!isAuthenticated) {
+    console.log('ProtectedRoute: Not authenticated');
     return <Navigate to="/" replace />;
   }
 
-  if (requiredRole && user?.role !== requiredRole) {
-    return <Navigate to="/" replace />;
+  if (requiredRole) {
+    console.log('ProtectedRoute: Checking role', { userRole: user?.role, requiredRole });
+    if (user?.role && user.role.toLowerCase() !== requiredRole.toLowerCase()) {
+      console.log('ProtectedRoute: Role mismatch, redirecting');
+      return <Navigate to="/" replace />;
+    }
   }
 
   return <>{children}</>;

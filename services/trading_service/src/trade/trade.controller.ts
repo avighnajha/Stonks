@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Request, UseGuards, ValidationPipe } from "@nestjs/common";
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Request, UseGuards, ValidationPipe } from "@nestjs/common";
 import { TradeService } from "./trade.service";
 import { AuthGuard } from "@nestjs/passport";
 import { IsArray, IsEnum, IsNumber, IsPositive, IsUUID } from "class-validator";
@@ -52,9 +52,13 @@ export class TradeController {
         return this.tradeService.getQuote(assetId);
     }
 
-    @Post('history/:assetId')
-    getHistory(@Param('assetId', ParseUUIDPipe) assetId: string){
-        return this.tradeService.getHistory(assetId);
+    @Get('history/:assetId')
+    getHistory(
+        @Param('assetId', ParseUUIDPipe) assetId: string,
+        @Query('timeframe') timeframe?: string,
+        @Query('days') days?: string
+    ){
+        return this.tradeService.getHistory(assetId, timeframe, days ? parseInt(days) : undefined);
     }
 
     @Post('buy/:assetId')

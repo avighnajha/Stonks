@@ -64,7 +64,7 @@ export class PublicController {
     }
   }
 
-  @Post(['history/:assetId'])
+  @Get(['history/:assetId'])
   async historyRequest(@Request() req, @Response() res) {
     const { method, originalUrl, headers, body } = req;
     try {

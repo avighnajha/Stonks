@@ -22,8 +22,8 @@ import { RolesGuard } from './auth/roles.guard';
   ],
   controllers: [
     PublicController,
-    ProxyController,
     AdminController,
+    ProxyController,
   ],
   providers: [JwtStrategy, TradingGateway, RolesGuard],
 })

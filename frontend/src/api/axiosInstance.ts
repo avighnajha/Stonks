@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // API Gateway URL - use Vite proxy or relative path by default
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
