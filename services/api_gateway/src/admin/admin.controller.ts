@@ -15,7 +15,7 @@ export class AdminController {
   private readonly portfolioServiceUrl = process.env.PORTFOLIO_SERVICE_URL || 'http://portfolio_service:3005';
   private readonly tradingServiceUrl = process.env.TRADING_SERVICE_URL || 'http://trading_service:3004';
   private readonly internalHeaders = {
-    'x-internal-api-key': process.env.INTERNAL_API_KEY || 'change_me_internal_key',
+    'x-internal-api-key': process.env.INTERNAL_API_KEY || 'a-very-secret-internal-key',
   };
 
   constructor(private readonly httpService: HttpService) {}
@@ -30,7 +30,7 @@ export class AdminController {
       );
       console.log(`[AdminController] Success from: ${url}`);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`[AdminController] Error from ${url}:`, error.message);
       throw error;
     }
@@ -74,11 +74,22 @@ export class AdminController {
       this.internalGet<any[]>(`${this.portfolioServiceUrl}/portfolio/admin/all`),
     ]);
 
-    const assetIds = Array.from(new Set(holdings.map((holding) => holding.asset_id || holding.assetId)));
-    const pricePayload = { assetIds };
-    const prices = assetIds.length > 0
-      ? await this.internalPost<{ assetId: string; price: number }[]>(`${this.tradingServiceUrl}/trade/prices`, pricePayload)
-      : [];
+    // Filter valid UUIDs from holdings
+    const allAssetIds = holdings.map((holding) => holding.asset_id || holding.assetId);
+    const assetIds = Array.from(new Set(
+      allAssetIds.filter((id) => id && typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+    ));
+
+    let prices: { assetId: string; price: number }[] = [];
+    if (assetIds.length > 0) {
+      try {
+        const pricePayload = { assetIds };
+        prices = await this.internalPost<{ assetId: string; price: number }[]>(`${this.tradingServiceUrl}/trade/prices`, pricePayload);
+      } catch (error: any) {
+        console.error('[AdminController] Failed to fetch prices, using empty array:', error.message);
+        prices = [];
+      }
+    }
 
     const priceMap = new Map(prices.map((price) => [price.assetId, Number(price.price)]));
     const walletMap = new Map(wallets.map((wallet) => [wallet.user_id || wallet.userId, Number(wallet.balance) || 0]));

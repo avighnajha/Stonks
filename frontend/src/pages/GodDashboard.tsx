@@ -118,7 +118,10 @@ const GodDashboard = () => {
 
     const tradeHandler = (payload: any) => {
       const timestamp = new Date().toLocaleTimeString();
-      const text = `[${timestamp}] ${payload.side ?? 'TRADE'} EXECUTED: ${payload.quantity} ${payload.assetId ?? ''} @ ${payload.price}`;
+      // Find asset name from approved assets
+      const asset = approvedAssets?.find((a: any) => a.id === payload.assetId);
+      const assetName = asset?.name || payload.assetId || 'Unknown';
+      const text = `[${timestamp}] ${payload.side ?? 'TRADE'} EXECUTED: ${payload.quantity} ${assetName} @ ${payload.price}`;
       setTradeLog((prev) => [text, ...prev].slice(0, 30));
     };
 
@@ -129,7 +132,7 @@ const GodDashboard = () => {
       socket.off('order_book_update', orderBookHandler);
       socket.off('newTrade', tradeHandler);
     };
-  }, [socket, selectedAsset, refetchOrderBook]);
+  }, [socket, selectedAsset, refetchOrderBook, approvedAssets]);
 
   const totalCash = useMemo(() => {
     if (!Array.isArray(leaderboard)) return 0;

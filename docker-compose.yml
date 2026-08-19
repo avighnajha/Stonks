@@ -25,7 +25,7 @@ services:
     environment:
       - PORT=8080
       - JWT_SECRET=${JWT_SECRET}
-      - INTERNAL_API_KEY=change_me_internal_key
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
       - USER_SERVICE_URL=http://user_service:3001
       - WALLET_SERVICE_URL=http://wallet_service:3002
       - MARKETPLACE_SERVICE_URL=http://marketplace_service:3003
@@ -51,7 +51,7 @@ services:
       - PORT=3001
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
       - JWT_SECRET=${JWT_SECRET}
-      - INTERNAL_API_KEY=change_me_internal_key
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     depends_on:
       - postgres_db
 
@@ -67,7 +67,7 @@ services:
       - PORT=3002
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
       - JWT_SECRET=${JWT_SECRET}
-      - INTERNAL_API_KEY=change_me_internal_key
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     depends_on:
       - postgres_db
 
@@ -83,7 +83,7 @@ services:
       - PORT=3003
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
       - JWT_SECRET=${JWT_SECRET}
-      - INTERNAL_API_KEY=change_me_internal_key
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     depends_on:
       - postgres_db
 
@@ -99,7 +99,7 @@ services:
       - PORT=3004
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
       - JWT_SECRET=${JWT_SECRET}
-      - INTERNAL_API_KEY=change_me_internal_key
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
       - REDIS_URL=redis://redis:6379
     depends_on:
       - postgres_db
@@ -120,7 +120,7 @@ services:
       - PORT=3005
       - DATABASE_URL=postgresql://user:password@postgres_db:5432/stonks_main_db
       - JWT_SECRET=${JWT_SECRET}
-      - INTERNAL_API_KEY=change_me_internal_key
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     depends_on:
       - postgres_db
 
