@@ -22,6 +22,7 @@ const GodDashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<string>('1h');
   const [visibleAssets, setVisibleAssets] = useState<Set<string>>(new Set());
+  const [liveChartData, setLiveChartData] = useState<any[]>([]);
 
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery<any, Error>({
     queryKey: ['admin-market-stats'],
@@ -63,6 +64,38 @@ const GodDashboard = () => {
     },
     enabled: topAssets.length > 0,
   });
+
+  // Seed the chart data when historical data is fetched
+  useEffect(() => {
+    if (!priceHistories || Object.keys(priceHistories).length === 0) {
+      setLiveChartData([]);
+      return;
+    }
+
+    // Get all unique timestamps across all assets
+    const allTimestamps = new Set<string>();
+    Object.values(priceHistories).forEach((history: any[]) => {
+      history.forEach((point: any) => {
+        allTimestamps.add(new Date(point.timestamp).toISOString());
+      });
+    });
+
+    // Sort timestamps
+    const sortedTimestamps = Array.from(allTimestamps).sort();
+
+    // Build chart data with each asset as a separate line
+    const formattedData = sortedTimestamps.map((timestamp) => {
+      const dataPoint: any = { timestamp: new Date(timestamp).toLocaleTimeString() };
+      topAssets.forEach((asset: any) => {
+        const history = priceHistories[asset.assetId] || [];
+        const point = history.find((p: any) => new Date(p.timestamp).toISOString() === timestamp);
+        dataPoint[asset.assetId] = point ? point.close : null;
+      });
+      return dataPoint;
+    });
+
+    setLiveChartData(formattedData);
+  }, [priceHistories, topAssets]);
 
   // Fetch all approved assets for order book selector
   const { data: approvedAssets } = useQuery({
@@ -123,6 +156,31 @@ const GodDashboard = () => {
       const assetName = asset?.name || payload.assetId || 'Unknown';
       const text = `[${timestamp}] ${payload.side ?? 'TRADE'} EXECUTED: ${payload.quantity} ${assetName} @ ${payload.price}`;
       setTradeLog((prev) => [text, ...prev].slice(0, 30));
+
+      // Update live chart data with forward-filling logic
+      setLiveChartData((prevData) => {
+        if (prevData.length === 0) return prevData;
+
+        // Check if the incoming trade's assetId is one of the assets currently being displayed
+        const trackedAssetIds = topAssets.map((a: any) => a.assetId);
+        if (!trackedAssetIds.includes(payload.assetId)) return prevData;
+
+        // Grab the very last data point in the array
+        const lastPoint = prevData[prevData.length - 1];
+
+        // Create a new data point by copying the previous one to carry forward the other assets' prices
+        const newPoint = { ...lastPoint, timestamp: new Date().toLocaleTimeString() };
+
+        // Overwrite the specific asset's price with the new LTP
+        newPoint[payload.assetId] = payload.price;
+
+        // Append and return with memory management
+        const updatedData = [...prevData, newPoint];
+        if (updatedData.length > 100) {
+          updatedData.shift(); // Remove the oldest point
+        }
+        return updatedData;
+      });
     };
 
     socket.on('order_book_update', orderBookHandler);
@@ -132,40 +190,12 @@ const GodDashboard = () => {
       socket.off('order_book_update', orderBookHandler);
       socket.off('newTrade', tradeHandler);
     };
-  }, [socket, selectedAsset, refetchOrderBook, approvedAssets]);
+  }, [socket, selectedAsset, refetchOrderBook, approvedAssets, topAssets]);
 
   const totalCash = useMemo(() => {
     if (!Array.isArray(leaderboard)) return 0;
     return leaderboard.reduce((sum: number, user: any) => sum + (Number(user.cash) || 0), 0);
   }, [leaderboard]);
-
-  const marketIndexData = useMemo(() => {
-    if (!priceHistories || Object.keys(priceHistories).length === 0) {
-      return [];
-    }
-
-    // Get all unique timestamps across all assets
-    const allTimestamps = new Set<string>();
-    Object.values(priceHistories).forEach((history: any[]) => {
-      history.forEach((point: any) => {
-        allTimestamps.add(new Date(point.timestamp).toISOString());
-      });
-    });
-
-    // Sort timestamps
-    const sortedTimestamps = Array.from(allTimestamps).sort();
-
-    // Build chart data with each asset as a separate line
-    return sortedTimestamps.map((timestamp) => {
-      const dataPoint: any = { timestamp: new Date(timestamp).toLocaleTimeString() };
-      topAssets.forEach((asset: any) => {
-        const history = priceHistories[asset.assetId] || [];
-        const point = history.find((p: any) => new Date(p.timestamp).toISOString() === timestamp);
-        dataPoint[asset.assetId] = point ? point.close : null;
-      });
-      return dataPoint;
-    });
-  }, [priceHistories, topAssets]);
 
   const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -279,7 +309,7 @@ const GodDashboard = () => {
               </CardHeader>
               <CardContent className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={marketIndexData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <LineChart data={liveChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <XAxis dataKey="timestamp" tick={{ fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />

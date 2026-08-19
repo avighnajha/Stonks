@@ -21,14 +21,12 @@ export class AdminController {
   constructor(private readonly httpService: HttpService) {}
 
   private async internalGet<T>(url: string) {
-    console.log(`[AdminController] Internal GET to: ${url}`);
     try {
       const response = await firstValueFrom(
         this.httpService.get<T>(url, {
           headers: this.internalHeaders,
         }),
       );
-      console.log(`[AdminController] Success from: ${url}`);
       return response.data;
     } catch (error: any) {
       console.error(`[AdminController] Error from ${url}:`, error.message);
@@ -78,15 +76,19 @@ export class AdminController {
     const allAssetIds = holdings.map((holding) => holding.asset_id || holding.assetId);
     const assetIds = Array.from(new Set(
       allAssetIds.filter((id) => id && typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
-    ));
+    )).slice(0, 50); // Limit to 50 assets to prevent payload size issues
 
     let prices: { assetId: string; price: number }[] = [];
     if (assetIds.length > 0) {
       try {
         const pricePayload = { assetIds };
+        console.log('[AdminController] Fetching prices for assets:', assetIds.length);
         prices = await this.internalPost<{ assetId: string; price: number }[]>(`${this.tradingServiceUrl}/trade/prices`, pricePayload);
       } catch (error: any) {
-        console.error('[AdminController] Failed to fetch prices, using empty array:', error.message);
+        console.error('[AdminController] Failed to fetch prices, using empty array. Error:', error.message);
+        if (error.response?.data) {
+          console.error('[AdminController] Price fetch error details:', error.response.data);
+        }
         prices = [];
       }
     }

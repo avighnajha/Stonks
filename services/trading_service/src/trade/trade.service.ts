@@ -513,12 +513,16 @@ export class TradeService {
 
     async getPrices(assetIds: string[]): Promise<{ assetId: string; price: number }[]> {
         if (assetIds.length === 0) return [];
-        
+
+        this.logger.log(`Fetching prices for ${assetIds.length} assets`);
+
         const latestTrades = await this.tradeRepository
             .createQueryBuilder('trade')
             .where('trade.asset_id IN (:...assetIds)', { assetIds })
             .orderBy('trade.timestamp', 'DESC')
             .getMany();
+
+        this.logger.log(`Found ${latestTrades.length} trades for price lookup`);
 
         const seen = new Set<string>();
         const prices: { assetId: string; price: number }[] = [];
@@ -528,6 +532,7 @@ export class TradeService {
                 seen.add(t.asset_id);
             }
         }
+        this.logger.log(`Returning prices for ${prices.length} unique assets`);
         return prices;
     }
 
