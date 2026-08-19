@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Request, UseGuards, ValidationPipe } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Query, Request, UseGuards, ValidationPipe } from "@nestjs/common";
 import { TradeService } from "./trade.service";
 import { AuthGuard } from "@nestjs/passport";
 import { IsArray, IsEnum, IsNumber, IsPositive, IsUUID } from "class-validator";
@@ -125,5 +125,12 @@ export class TradeController {
     @UseGuards(InternalApiKeyGuard)
     async getAdminOrderBook(@Param('assetId', ParseUUIDPipe) assetId: string){
         return this.tradeService.getOrderBookSnapshot(assetId);
+    }
+
+    @Delete('order/:orderId')
+    @UseGuards(AuthGuard('jwt'))
+    async cancelOrder(@Request() req, @Param('orderId', ParseUUIDPipe) orderId: string){
+        const userId = req.user.userId;
+        return this.tradeService.cancelOrder(orderId, userId);
     }
 }

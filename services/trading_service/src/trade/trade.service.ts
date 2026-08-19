@@ -530,4 +530,76 @@ export class TradeService {
         }
         return prices;
     }
+
+    async cancelOrder(orderId: string, userId: string) {
+        const order = await this.orderRepository.findOne({ where: { id: orderId } });
+        if (!order) {
+            throw new NotFoundException('Order not found');
+        }
+
+        const assetId = order.asset_id;
+
+        const result = await this.entityManager.transaction(async (transactionalEntityManager) => {
+            const lockedOrder = await transactionalEntityManager.findOne(Order, {
+                where: { id: orderId },
+                lock: { mode: 'pessimistic_write' }
+            });
+
+            if (!lockedOrder) {
+                throw new NotFoundException('Order not found');
+            }
+
+            if (lockedOrder.user_id !== userId) {
+                throw new BadRequestException('You can only cancel your own orders');
+            }
+
+            if (lockedOrder.status !== OrderStatus.OPEN && lockedOrder.status !== OrderStatus.PARTIALLY_FILLED) {
+                throw new BadRequestException('Order cannot be cancelled. It is already ' + lockedOrder.status);
+            }
+
+            const remainingQuantity = Number(lockedOrder.remaining_quantity);
+            if (remainingQuantity <= 0) {
+                throw new BadRequestException('Order has no remaining quantity to cancel');
+            }
+
+            const price = Number(lockedOrder.price);
+            const unfreezeAmount = price * remainingQuantity;
+
+            try {
+                if (lockedOrder.side === OrderSide.BUY) {
+                    const payload = { userId, amount: unfreezeAmount };
+                    this.logger.log(`Unfreezing buyer wallet funds for cancelled order: ${JSON.stringify(payload)}`);
+                    await this.postWithRetry(this.walletBase + '/wallet/unfreeze', payload, { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }, 3, 200);
+                    this.logger.log(`Buyer wallet unfreeze succeeded for ${userId}`);
+                } else {
+                    const payload = { userId, assetId: lockedOrder.asset_id, quantity: remainingQuantity };
+                    this.logger.log(`Unfreezing seller portfolio holdings for cancelled order: ${JSON.stringify(payload)}`);
+                    await this.postWithRetry(this.portfolioBase + '/portfolio/unfreeze', payload, { headers: { 'x-internal-api-key': process.env.INTERNAL_API_KEY } }, 3, 200);
+                    this.logger.log(`Seller portfolio unfreeze succeeded for ${userId}`);
+                }
+            } catch (error) {
+                this.logger.error(`Failed to unfreeze assets for cancelled order: ${error?.message || error}`);
+                throw new BadRequestException('Failed to unfreeze assets/funds. Please try again or contact support.');
+            }
+
+            lockedOrder.status = OrderStatus.CANCELLED;
+            lockedOrder.remaining_quantity = 0;
+            await transactionalEntityManager.save(lockedOrder);
+
+            return {
+                message: 'Order cancelled successfully',
+                orderId: lockedOrder.id,
+                unfrozenAmount: lockedOrder.side === OrderSide.BUY ? unfreezeAmount : undefined,
+                unfrozenQuantity: lockedOrder.side === OrderSide.SELL ? remainingQuantity : undefined
+            };
+        });
+
+        try {
+            await this.publishOrderBookSnapshot(assetId);
+        } catch (err) {
+            this.logger.warn(`Failed to publish order book snapshot to Redis for asset ${assetId}: ${err?.message || err}`);
+        }
+
+        return result;
+    }
 }
