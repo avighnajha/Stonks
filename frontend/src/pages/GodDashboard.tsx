@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft } from 'lucide-react';
-import { getAdminLeaderboard, getAdminMarketStats, getAdminOrderBook, getAdminAllTrades, getAdminPriceHistory, getApprovedAssets } from '@/api/admin.api';
+import { getAdminLeaderboard, getAdminMarketStats, getAdminOrderBook, getAdminAllTrades, getAdminPriceHistory, getApprovedAssets, injectNews } from '@/api/admin.api';
 import { LineChart, Line, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts';
+import { toast } from 'sonner';
 
 const formatMoney = (value: number) => `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
@@ -23,6 +24,9 @@ const GodDashboard = () => {
   const [timeframe, setTimeframe] = useState<string>('1h');
   const [visibleAssets, setVisibleAssets] = useState<Set<string>>(new Set());
   const [liveChartData, setLiveChartData] = useState<any[]>([]);
+  const [newsAssetId, setNewsAssetId] = useState<string>('');
+  const [newsHeadline, setNewsHeadline] = useState<string>('');
+  const [newsSentiment, setNewsSentiment] = useState<number>(50);
 
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery<any, Error>({
     queryKey: ['admin-market-stats'],
@@ -215,6 +219,23 @@ const GodDashboard = () => {
   const activeAgents = Array.isArray(leaderboard) ? leaderboard.length : 0;
   const mostVolatile = stats?.topGainers?.[0]?.assetId || stats?.topLosers?.[0]?.assetId || 'N/A';
 
+  const handleInjectNews = async () => {
+    if (!newsAssetId || !newsHeadline) {
+      setError('Please select an asset and enter a headline');
+      return;
+    }
+    try {
+      await injectNews({ assetId: newsAssetId, headline: newsHeadline, sentiment: newsSentiment });
+      setNewsHeadline('');
+      setNewsSentiment(50);
+      setError(null);
+      toast.success('News injected successfully!');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to inject news');
+      toast.error('Failed to inject news');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground py-8">
       {error && (
@@ -403,22 +424,76 @@ const GodDashboard = () => {
             </Card>
           </div>
 
-          <Card className="bg-black border border-white/10 text-white">
-            <CardHeader>
-              <CardTitle>Live System Terminal</CardTitle>
-            </CardHeader>
-            <CardContent className="h-[560px] overflow-y-auto rounded-3xl bg-slate-950/90 p-4 font-mono text-sm text-slate-200">
-              {tradeLog.length === 0 ? (
-                <p className="text-muted-foreground">Waiting for trade execution events...</p>
-              ) : (
-                <div className="space-y-2">
-                  {tradeLog.map((line, index) => (
-                    <div key={index} className="whitespace-pre-wrap">{line}</div>
-                  ))}
+          <div className="space-y-4">
+            <Card className="bg-secondary border-border">
+              <CardHeader>
+                <CardTitle>Market Manipulation (News)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Asset</label>
+                  <Select value={newsAssetId} onValueChange={setNewsAssetId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select asset" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(approvedAssets || []).map((asset: any) => (
+                        <SelectItem key={asset.id} value={asset.id}>
+                          {asset.name || asset.id.substring(0, 8)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Headline</label>
+                  <input
+                    type="text"
+                    value={newsHeadline}
+                    onChange={(e) => setNewsHeadline(e.target.value)}
+                    placeholder="e.g., CEO resigns in scandal!"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Sentiment: {newsSentiment}</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={newsSentiment}
+                    onChange={(e) => setNewsSentiment(Number(e.target.value))}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>Max Bearish (0)</span>
+                    <span>Neutral (50)</span>
+                    <span>Max Bullish (100)</span>
+                  </div>
+                </div>
+                <Button onClick={handleInjectNews} className="w-full">
+                  Inject News
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-black border border-white/10 text-white">
+              <CardHeader>
+                <CardTitle>Live System Terminal</CardTitle>
+              </CardHeader>
+              <CardContent className="h-[400px] overflow-y-auto rounded-3xl bg-slate-950/90 p-4 font-mono text-sm text-slate-200">
+                {tradeLog.length === 0 ? (
+                  <p className="text-muted-foreground">Waiting for trade execution events...</p>
+                ) : (
+                  <div className="space-y-2">
+                    {tradeLog.map((line, index) => (
+                      <div key={index} className="whitespace-pre-wrap">{line}</div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">

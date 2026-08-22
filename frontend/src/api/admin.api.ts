@@ -30,3 +30,8 @@ export const getApprovedAssets = async () => {
   const response = await axiosInstance.get('/assets/approved');
   return response.data;
 };
+
+export const injectNews = async (payload: { assetId: string; headline: string; sentiment: number }) => {
+  const response = await axiosInstance.post('/admin/inject-news', payload);
+  return response.data;
+};

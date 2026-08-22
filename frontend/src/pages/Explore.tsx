@@ -3,6 +3,7 @@ import { Search, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { StockCard } from '@/components/StockCard';
+import { NewsTicker } from '@/components/NewsTicker';
 import mbappeStock from '@/assets/mbappe-stock.jpg';
 import haterStock from '@/assets/hater-stock.jpg';
 import elonStock from '@/assets/elon-stock.jpg';
@@ -175,6 +176,9 @@ export const Explore = ({ onStockClick }: ExploreProps) => {
           </div>
         )}
       </div>
+
+      {/* Breaking News */}
+      <NewsTicker />
 
       {/* Categories */}
       <div className="space-y-4">

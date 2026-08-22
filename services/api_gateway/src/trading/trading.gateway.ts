@@ -5,12 +5,12 @@ import Redis from 'ioredis';
 import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
-@WebSocketGateway({ namespace: 'market', cors: { origin: '*' } })
+@WebSocketGateway({ namespace: '/market', cors: { origin: '*' } })
 export class TradingGateway implements OnModuleInit, OnGatewayConnection {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
-  private redis: Redis;
+  private redis!: Redis;
   private readonly logger = new Logger(TradingGateway.name);
 
   constructor(private readonly jwtService: JwtService) {}
@@ -21,17 +21,22 @@ export class TradingGateway implements OnModuleInit, OnGatewayConnection {
 
     this.redis.on('error', (err) => this.logger.error('Redis subscriber error', err));
 
-    this.redis.subscribe('TRADE_EVENTS', 'ORDER_BOOK_EVENTS').then(() => {
-      this.logger.log('Subscribed to TRADE_EVENTS and ORDER_BOOK_EVENTS');
+    this.redis.subscribe('TRADE_EVENTS', 'ORDER_BOOK_EVENTS', 'GLOBAL_NEWS').then(() => {
+      this.logger.log('Subscribed to TRADE_EVENTS, ORDER_BOOK_EVENTS, and GLOBAL_NEWS');
     }).catch((e) => this.logger.error('Failed to subscribe to Redis channels', e));
 
     this.redis.on('message', (channel: string, message: string) => {
+      this.logger.log(`Received message on channel: ${channel}`);
       try {
         const payload = JSON.parse(message);
         if (channel === 'TRADE_EVENTS') {
           this.server.emit('newTrade', payload);
         } else if (channel === 'ORDER_BOOK_EVENTS') {
           this.server.emit('order_book_update', payload);
+        } else if (channel === 'GLOBAL_NEWS') {
+          this.logger.log(`Broadcasting global_news event:`, payload);
+          this.server.emit('global_news', payload);
+          this.logger.log(`global_news event emitted to all clients`);
         }
       } catch (e) {
         this.logger.warn(`Failed to parse message on channel ${channel}: ${e}`);
@@ -54,10 +59,7 @@ export class TradingGateway implements OnModuleInit, OnGatewayConnection {
         secret: process.env.JWT_SECRET || 'default-secret',
       }) as { role?: string };
 
-      if (payload.role !== 'admin') {
-        this.logger.warn('WebSocket connection rejected: non-admin role');
-        client.disconnect();
-      }
+      this.logger.log(`WebSocket connection accepted for user with role: ${payload.role || 'none'}`);
     } catch (err) {
       this.logger.warn('WebSocket connection rejected: invalid token');
       client.disconnect();

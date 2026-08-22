@@ -16,7 +16,7 @@ export default function useSocket() {
     setSocket(s);
 
     s.on('connect', () => {
-      // connection established
+      console.log('[useSocket] Connected to socket, ID:', s.id);
     });
 
     s.on('connect_error', (err) => {

@@ -5,6 +5,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../auth/user-role.enum';
+import Redis from 'ioredis';
+import { Logger } from '@nestjs/common';
 
 @Controller('admin')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -17,8 +19,14 @@ export class AdminController {
   private readonly internalHeaders = {
     'x-internal-api-key': process.env.INTERNAL_API_KEY || 'a-very-secret-internal-key',
   };
+  private redis: Redis;
+  private readonly logger = new Logger(AdminController.name);
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(private readonly httpService: HttpService) {
+    const url = process.env.REDIS_URL || 'redis://localhost:6379';
+    this.redis = new Redis(url);
+    this.redis.on('error', (err) => this.logger.error('Redis publisher error', err));
+  }
 
   private async internalGet<T>(url: string) {
     try {
@@ -132,5 +140,36 @@ export class AdminController {
     }));
 
     return leaderboard.sort((a, b) => b.netWorth - a.netWorth);
+  }
+
+  @Post('inject-news')
+  async injectNews(@Body() payload: { assetId: string; headline: string; sentiment: number }) {
+    const { assetId, headline, sentiment } = payload;
+
+    // validate sentiment range
+    if (sentiment < 0 || sentiment > 100) {
+      throw new BadRequestException('Sentiment must be between 0 and 100');
+    }
+
+    // validate required fields
+    if (!assetId || !headline) {
+      throw new BadRequestException('assetId and headline are required');
+    }
+
+    const newsPayload = {
+      assetId,
+      headline,
+      sentiment,
+      timestamp: new Date().toISOString(),
+    };
+
+    try {
+      const result = await this.redis.publish('GLOBAL_NEWS', JSON.stringify(newsPayload));
+      this.logger.log(`News injected: ${headline} for ${assetId} with sentiment ${sentiment}. Published to ${result} subscribers`);
+      return { success: true, message: 'News injected successfully', payload: newsPayload };
+    } catch (error: any) {
+      this.logger.error('Failed to publish news to Redis', error);
+      throw new BadRequestException('Failed to inject news');
+    }
   }
 }
