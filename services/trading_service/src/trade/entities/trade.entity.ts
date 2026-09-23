@@ -1,7 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+} from 'typeorm';
 
 @Entity('trades')
 export class Trade {
+  @Column({ type: 'bigint', generated: 'increment' })
+  sequence: string;
   @PrimaryGeneratedColumn('uuid')
   id: string;
 

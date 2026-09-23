@@ -9,43 +9,42 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 5173,
     proxy: {
-      '/auth': {
-        target: 'http://localhost:8080',
+      "/admin": { target: "http://localhost:8080", changeOrigin: true },
+      "/auth": {
+        target: "http://localhost:8080",
         changeOrigin: true,
       },
-      '/assets': {
-        target: 'http://localhost:8080',
+      "/assets": {
+        target: "http://localhost:8080",
         changeOrigin: true,
       },
-      '/trade': {
-        target: 'http://localhost:8080',
+      "/trade": {
+        target: "http://localhost:8080",
         changeOrigin: true,
       },
-      '/portfolio': {
-        target: 'http://localhost:8080',
+      "/portfolio": {
+        target: "http://localhost:8080",
         changeOrigin: true,
       },
-      '/wallet': {
-        target: 'http://localhost:8080',
+      "/wallet": {
+        target: "http://localhost:8080",
         changeOrigin: true,
       },
-      '/market': {
-        target: 'http://localhost:8080',
+      "/market": {
+        target: "http://localhost:8080",
         ws: true,
         changeOrigin: true,
       },
-      '/socket.io': {
-        target: 'http://localhost:8080',
+      "/socket.io": {
+        target: "http://localhost:8080",
         ws: true,
         changeOrigin: true,
       },
     },
   },
-  plugins: [
-    react(),
-    mode === 'development' &&
-    componentTagger(),
-  ].filter(Boolean),
+  plugins: [react(), mode === "development" && componentTagger()].filter(
+    Boolean,
+  ),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

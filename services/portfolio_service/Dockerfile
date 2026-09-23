@@ -1,22 +1,15 @@
-# services/user-service/Dockerfile (Optimized for Development)
-
-# Start with the official Node.js image
-FROM node:18-alpine
-
-# Set the working directory inside the container
+FROM node:22-alpine AS build
 WORKDIR /usr/src/app
-
-# Copy ONLY the package files to leverage Docker caching
 COPY package*.json ./
-
-# Install ALL dependencies, including devDependencies, which we need for `nest`
-RUN npm install
-
-# Ensure NestJS CLI is available globally
-RUN npm install -g @nestjs/cli
-
-# Copy the rest of the application code
+RUN npm ci
 COPY . .
+RUN npm run build && npm prune --omit=dev
 
-# This just tells Docker what port the container will eventually listen on.
-EXPOSE 3005
+FROM node:22-alpine
+ENV NODE_ENV=production
+WORKDIR /usr/src/app
+COPY --from=build --chown=node:node /usr/src/app/package*.json ./
+COPY --from=build --chown=node:node /usr/src/app/node_modules ./node_modules
+COPY --from=build --chown=node:node /usr/src/app/dist ./dist
+USER node
+CMD ["node", "dist/main.js"]

@@ -12,19 +12,15 @@ import { RolesGuard } from './auth/roles.guard';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }), 
+    ConfigModule.forRoot({ isGlobal: true }),
     HttpModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'default-secret',
+      secret: process.env.JWT_SECRET!,
       signOptions: { expiresIn: '1h' },
     }),
     PassportModule.register({ defaultStrategy: 'jwt' }),
   ],
-  controllers: [
-    PublicController,
-    AdminController,
-    ProxyController,
-  ],
+  controllers: [PublicController, AdminController, ProxyController],
   providers: [JwtStrategy, TradingGateway, RolesGuard],
 })
 export class AppModule {}

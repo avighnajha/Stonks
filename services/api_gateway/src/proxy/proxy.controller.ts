@@ -12,12 +12,16 @@ export class ProxyController {
   @All('*')
   @UseGuards(AuthGuard('jwt'))
   async proxyRequest(@Request() req, @Response() res) {
-    console.log(`[ProxyController] Received request: ${req.method} ${req.originalUrl}`);
+    console.log(
+      `[ProxyController] Received request: ${req.method} ${req.originalUrl}`,
+    );
     const recipientServiceUrl = this.getRecipientServiceUrl(req.originalUrl);
 
     if (!recipientServiceUrl) {
       console.log(`[ProxyController] No service found for: ${req.originalUrl}`);
-      return res.status(502).json({ message: 'Cannot process request: service not found' });
+      return res
+        .status(502)
+        .json({ message: 'Cannot process request: service not found' });
     }
 
     const { method, originalUrl, headers, body } = req;
@@ -25,7 +29,8 @@ export class ProxyController {
     // Forward the user's JWT and other important headers
     const forwardedHeaders = {
       'Content-Type': headers['content-type'] || 'application/json',
-      'Authorization': headers['authorization'],
+      Authorization: headers['authorization'],
+      'Idempotency-Key': headers['idempotency-key'],
     };
 
     try {
@@ -35,12 +40,15 @@ export class ProxyController {
           url: `${recipientServiceUrl}${originalUrl}`,
           headers: forwardedHeaders,
           data: body,
+          timeout: 15000,
         }),
       );
       res.status(response.status).json(response.data);
     } catch (error) {
       console.error(`[ProxyController] Error proxying request:`, error.message);
-      res.status(error.response?.status || 500).json(error.response?.data || 'Internal server error');
+      res
+        .status(error.response?.status || 500)
+        .json(error.response?.data || 'Internal server error');
     }
   }
 

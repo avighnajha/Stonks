@@ -1,13 +1,28 @@
-import { useState, useEffect } from 'react';
-import useSocket from '@/hooks/useSocket';
-import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Users } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import tradingApi from '@/api/trading.api';
-import axiosInstance from '@/api/axiosInstance';
+import { MyOrders } from "@/components/MyOrders";
+import { OrderBook } from "@/components/OrderBook";
+import { useAuth } from "@/hooks/useAuth";
+import { useState, useEffect, useRef } from "react";
+import useSocket from "@/hooks/useSocket";
+import {
+  ArrowLeft,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Users,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import tradingApi from "@/api/trading.api";
+import axiosInstance from "@/api/axiosInstance";
 
 interface StockDetailProps {
   stock: any;
@@ -15,17 +30,28 @@ interface StockDetailProps {
 }
 
 export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
-  const [selectedTimeframe, setSelectedTimeframe] = useState('1D');
-  const [tradeAmount, setTradeAmount] = useState('');
-  const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
-  const [orderKind, setOrderKind] = useState<'MARKET' | 'LIMIT'>('MARKET');
-  const [limitPrice, setLimitPrice] = useState<string>('');
+  const [selectedTimeframe, setSelectedTimeframe] = useState("1D");
+  const [tradeAmount, setTradeAmount] = useState("");
+  const [tradeType, setTradeType] = useState<"buy" | "sell">("buy");
+  const [orderKind, setOrderKind] = useState<"MARKET" | "LIMIT">("MARKET");
+  const [limitPrice, setLimitPrice] = useState<string>("");
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
+  const sending = useRef(false);
+  const [chartError, setChartError] = useState("");
+  const [currentData, setCurrentData] = useState<number[]>([]);
 
-  const timeframes = ['1D', '1W', '1M', '3M', '1Y', 'ALL'];
-  const [currentPrice, setCurrentPrice] = useState<number>(stock?.price ?? stock?.initialPrice ?? 0);
-  const [currentChange, setCurrentChange] = useState<number>(stock?.change ?? 0);
-  const [currentChangePercent, setCurrentChangePercent] = useState<number>(stock?.changePercent ?? 0);
+  const timeframes = ["1D", "1W", "1M", "3M", "1Y", "ALL"];
+  const [currentPrice, setCurrentPrice] = useState<number>(
+    stock?.price ?? stock?.initialPrice ?? 0,
+  );
+  const [currentChange, setCurrentChange] = useState<number>(
+    stock?.change ?? 0,
+  );
+  const [currentChangePercent, setCurrentChangePercent] = useState<number>(
+    stock?.changePercent ?? 0,
+  );
   const isPositive = currentChange >= 0;
   const socket = useSocket();
 
@@ -36,7 +62,7 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
       if (!payload) return;
       if (payload.assetId !== stock.id) return;
       const newPrice = Number(payload.price);
-      const oldPrice = currentPrice || stock.price || 0;
+      const oldPrice = stock.price || 0;
       const change = newPrice - oldPrice;
       const changePercent = oldPrice ? (change / oldPrice) * 100 : 0;
       setCurrentPrice(newPrice);
@@ -44,11 +70,11 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
       setCurrentChangePercent(changePercent);
     };
 
-    socket.on('newTrade', handler);
+    socket.on("newTrade", handler);
     return () => {
-      socket.off('newTrade', handler);
+      socket.off("newTrade", handler);
     };
-  }, [socket, stock.id, currentPrice]);
+  }, [socket, stock.id, stock.price]);
 
   useEffect(() => {
     // whenever stock changes, reset current price to the provided value
@@ -56,126 +82,160 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
     setCurrentChange(stock?.change ?? 0);
     setCurrentChangePercent(stock?.changePercent ?? 0);
   }, [stock]);
-  
+
   const marketCap = currentPrice * (stock?.totalSupply ?? 0);
-  const formattedMarketCap = marketCap > 0
-    ? `$${marketCap.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-    : 'N/A';
-  const formattedInvestors = stock?.investors != null
-    ? stock.investors
-    : 'N/A';
+  const formattedMarketCap =
+    marketCap > 0
+      ? `$${marketCap.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+      : "N/A";
+  const formattedInvestors = stock?.investors != null ? stock.investors : "N/A";
 
-  // Mock extended data for different timeframes
-  const mockData = {
-    '1D': stock?.data || [],
-    '1W': [120, 125, 130, 128, 135, 140, 138, 142, 139, 141, 143, 142.5, 145, 144, 142.5],
-    '1M': [100, 110, 120, 115, 125, 135, 130, 140, 138, 142.5],
-    '3M': [80, 90, 100, 110, 120, 130, 125, 140, 142.5],
-    '1Y': [60, 80, 100, 120, 140, 142.5],
-    'ALL': [40, 60, 80, 100, 120, 140, 142.5]
-  };
-
-  const currentData = mockData[selectedTimeframe as keyof typeof mockData];
-
+  useEffect(() => {
+    let active = true;
+    const settings: Record<string, [number, string]> = {
+      "1D": [1, "5m"],
+      "1W": [7, "1h"],
+      "1M": [30, "1d"],
+      "3M": [90, "1d"],
+      "1Y": [365, "1d"],
+      ALL: [3650, "1d"],
+    };
+    const [days, timeframe] = settings[selectedTimeframe];
+    const load = async () => {
+      try {
+        const { data } = await axiosInstance.get(`/trade/history/${stock.id}`, {
+          params: { days, timeframe },
+        });
+        if (active) {
+          setCurrentData(data.map((p: any) => Number(p.close ?? p.price)));
+          setChartError("");
+        }
+      } catch {
+        if (active) setChartError("Price history unavailable");
+      }
+    };
+    void load();
+    const timer = setInterval(load, 5000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [stock.id, selectedTimeframe]);
   const generatePath = (data: number[]) => {
-    if (data.length === 0) return '';
-    
+    if (data.length === 0) return "";
+
     const width = 300;
     const height = 200;
     const max = Math.max(...data);
     const min = Math.min(...data);
     const range = max - min || 1;
-    
+
     const points = data.map((value, index) => {
-      const x = data.length === 1 ? width / 2 : (index / (data.length - 1)) * width;
+      const x =
+        data.length === 1 ? width / 2 : (index / (data.length - 1)) * width;
       const y = height - ((value - min) / range) * height;
       return `${x},${y}`;
     });
-    
-    return `M ${points.join(' L ')}`;
+
+    return `M ${points.join(" L ")}`;
   };
 
   const handleTrade = () => {
+    if (sending.current || !user) return;
     (async () => {
       const amount = parseFloat(tradeAmount);
       if (!amount || amount <= 0) {
         toast({
-          title: 'Invalid Amount',
-          description: 'Please enter a valid amount',
-          variant: 'destructive'
+          title: "Invalid Amount",
+          description: "Please enter a valid amount",
+          variant: "destructive",
         });
         return;
       }
 
+      sending.current = true;
+      setSubmitting(true);
       try {
         const assetAmount = Number(tradeAmount);
-        const price = orderKind === 'LIMIT' ? Number(limitPrice) : currentPrice;
+        const price = Number(limitPrice || currentPrice);
         const payload = { assetAmount, price, type: orderKind };
 
-        const response = tradeType === 'buy'
-          ? await tradingApi.buyAsset(stock.id, payload as any)
-          : await tradingApi.sellAsset(stock.id, payload as any);
+        const response =
+          tradeType === "buy"
+            ? await tradingApi.buyAsset(stock.id, payload as any)
+            : await tradingApi.sellAsset(stock.id, payload as any);
 
         // Refresh portfolio and wallet, then notify listeners
         try {
-          await axiosInstance.get('/portfolio');
+          await axiosInstance.get("/portfolio");
         } catch (e) {
           // ignore
         }
 
         try {
-          const w = await axiosInstance.get('/wallet/balance');
+          const w = await axiosInstance.get("/wallet/balance");
           const wallet = w.data;
-          const currentUserRaw = localStorage.getItem('user');
+          const currentUserRaw = localStorage.getItem("user");
           if (currentUserRaw) {
             const currentUser = JSON.parse(currentUserRaw);
             currentUser.balance = wallet?.balance ?? currentUser.balance;
-            localStorage.setItem('user', JSON.stringify(currentUser));
+            localStorage.setItem("user", JSON.stringify(currentUser));
           }
         } catch (e) {
           // ignore
         }
 
         // Emit event so Portfolio can refresh if open
-        window.dispatchEvent(new CustomEvent('portfolio:updated'));
+        window.dispatchEvent(new CustomEvent("portfolio:updated"));
 
-        const wasPlaced = response.status === 'OPEN' || response.status === 'PARTIALLY_FILLED';
+        const wasPlaced =
+          response.status === "OPEN" || response.status === "PARTIALLY_FILLED";
         const filled = Number(response.filledQuantity ?? 0);
-        const verb = tradeType === 'buy' ? 'Purchase' : 'Sale';
+        const verb = tradeType === "buy" ? "Purchase" : "Sale";
 
         if (wasPlaced && filled === 0) {
           toast({
-            title: 'Order placed',
+            title: "Order placed",
             description: `${verb} order for ${amount} ${stock.name} has been placed on the book.`,
           });
         } else if (wasPlaced && filled > 0) {
           const remaining = assetAmount - filled;
           toast({
-            title: 'Order partially filled',
+            title: "Order partially filled",
             description: `${verb} ${filled} ${stock.name} and placed ${remaining} on the order book.`,
+          });
+        } else if (response.status === "CANCELLED") {
+          toast({
+            title: "Market order complete",
+            description: `Filled ${filled}; unused quantity cancelled.`,
           });
         } else {
           toast({
-            title: `${tradeType === 'buy' ? 'Bought' : 'Sold'}!`,
-            description: `${tradeType === 'buy' ? 'Purchased' : 'Sold'} ${amount} of ${stock.name}.`,
+            title: `${tradeType === "buy" ? "Bought" : "Sold"}!`,
+            description: `${tradeType === "buy" ? "Purchased" : "Sold"} ${amount} of ${stock.name}.`,
           });
         }
 
-        setTradeAmount('');
+        setTradeAmount("");
       } catch (err: any) {
         toast({
-          title: 'Trade failed',
-          description: err?.response?.data?.message || err?.message || 'Please try again',
-          variant: 'destructive'
+          title: "Trade failed",
+          description: err?.message || "Please try again",
+          variant: "destructive",
         });
+      } finally {
+        sending.current = false;
+        setSubmitting(false);
       }
     })();
   };
 
   const isUuid = (id: any) => {
-    if (!id || typeof id !== 'string') return false;
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
-  }
+    if (!id || typeof id !== "string") return false;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      id,
+    );
+  };
 
   if (!stock) return null;
 
@@ -183,34 +243,39 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
     <div className="container mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center space-x-4">
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={onBack}
           className="bg-secondary border-border"
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex items-center space-x-3">
-          <img 
-            src={stock.image} 
+          <img
+            src={stock.image}
             alt={stock.name}
             className="w-12 h-12 rounded-full object-cover border-2 border-border"
           />
           <div>
             <h1 className="text-2xl font-bold">{stock.name}</h1>
             <div className="flex items-center space-x-2">
-                <span className="text-3xl font-bold">${currentPrice.toFixed(2)}</span>
-              <div className={`flex items-center space-x-1 ${
-                isPositive ? 'text-success' : 'text-danger'
-              }`}>
+              <span className="text-3xl font-bold">
+                ${currentPrice.toFixed(2)}
+              </span>
+              <div
+                className={`flex items-center space-x-1 ${
+                  isPositive ? "text-success" : "text-danger"
+                }`}
+              >
                 {isPositive ? (
                   <TrendingUp className="h-4 w-4" />
                 ) : (
                   <TrendingDown className="h-4 w-4" />
                 )}
                 <span className="font-medium">
-                  {isPositive ? '+' : ''}${currentChange.toFixed(2)} ({currentChangePercent.toFixed(2)}%)
+                  {isPositive ? "+" : ""}${currentChange.toFixed(2)} (
+                  {currentChangePercent.toFixed(2)}%)
                 </span>
               </div>
             </div>
@@ -227,12 +292,15 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
               {timeframes.map((timeframe) => (
                 <Button
                   key={timeframe}
-                  variant={selectedTimeframe === timeframe ? "default" : "outline"}
+                  variant={
+                    selectedTimeframe === timeframe ? "default" : "outline"
+                  }
                   size="sm"
                   onClick={() => setSelectedTimeframe(timeframe)}
-                  className={selectedTimeframe === timeframe 
-                    ? "bg-primary text-primary-foreground" 
-                    : "bg-background border-border hover:bg-accent"
+                  className={
+                    selectedTimeframe === timeframe
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background border-border hover:bg-accent"
                   }
                 >
                   {timeframe}
@@ -245,15 +313,35 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
           <div className="w-full flex justify-center">
             <svg width="300" height="200" className="overflow-visible">
               <defs>
-                <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor={isPositive ? 'hsl(var(--success))' : 'hsl(var(--danger))'} stopOpacity="0.3" />
-                  <stop offset="100%" stopColor={isPositive ? 'hsl(var(--success))' : 'hsl(var(--danger))'} stopOpacity="0" />
+                <linearGradient
+                  id="chartGradient"
+                  x1="0%"
+                  y1="0%"
+                  x2="0%"
+                  y2="100%"
+                >
+                  <stop
+                    offset="0%"
+                    stopColor={
+                      isPositive ? "hsl(var(--success))" : "hsl(var(--danger))"
+                    }
+                    stopOpacity="0.3"
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor={
+                      isPositive ? "hsl(var(--success))" : "hsl(var(--danger))"
+                    }
+                    stopOpacity="0"
+                  />
                 </linearGradient>
               </defs>
               <path
                 d={generatePath(currentData)}
                 fill="none"
-                stroke={isPositive ? 'hsl(var(--success))' : 'hsl(var(--danger))'}
+                stroke={
+                  isPositive ? "hsl(var(--success))" : "hsl(var(--danger))"
+                }
                 strokeWidth="3"
                 className="drop-shadow-sm"
               />
@@ -266,6 +354,10 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
         </CardContent>
       </Card>
 
+      {chartError && <p role="alert">{chartError}</p>}
+      {!currentData.length && !chartError && <p>No trades in this period.</p>}
+      <OrderBook assetId={stock.id} />
+      <MyOrders assetId={stock.id} />
       {/* Description */}
       <Card className="bg-gradient-card border-border">
         <CardHeader>
@@ -273,11 +365,11 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground leading-relaxed">
-            {stock.description || stock.longDescription ||
-              'This offering was approved for public trading. Review the current market conditions and performance before trading.'
-            }
+            {stock.description ||
+              stock.longDescription ||
+              "This offering was approved for public trading. Review the current market conditions and performance before trading."}
           </p>
-          
+
           <div className="grid grid-cols-2 gap-4 pt-4">
             <div className="flex items-center space-x-2">
               <Users className="h-4 w-4 text-primary" />
@@ -301,32 +393,36 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
       <Card className="bg-gradient-card border-border">
         <CardHeader>
           <CardTitle>Trade {stock.name}</CardTitle>
-          <CardDescription>Buy or sell shares in this investment</CardDescription>
+          <CardDescription>
+            Buy or sell shares in this investment
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex space-x-2">
             <Button
-              variant={tradeType === 'buy' ? 'default' : 'outline'}
-              onClick={() => setTradeType('buy')}
-              className={tradeType === 'buy' 
-                ? "flex-1 bg-success hover:bg-success/90 text-success-foreground" 
-                : "flex-1 bg-background border-border hover:bg-accent"
+              variant={tradeType === "buy" ? "default" : "outline"}
+              onClick={() => setTradeType("buy")}
+              className={
+                tradeType === "buy"
+                  ? "flex-1 bg-success hover:bg-success/90 text-success-foreground"
+                  : "flex-1 bg-background border-border hover:bg-accent"
               }
             >
               Buy
             </Button>
             <Button
-              variant={tradeType === 'sell' ? 'default' : 'outline'}
-              onClick={() => setTradeType('sell')}
-              className={tradeType === 'sell' 
-                ? "flex-1 bg-danger hover:bg-danger/90 text-danger-foreground" 
-                : "flex-1 bg-background border-border hover:bg-accent"
+              variant={tradeType === "sell" ? "default" : "outline"}
+              onClick={() => setTradeType("sell")}
+              className={
+                tradeType === "sell"
+                  ? "flex-1 bg-danger hover:bg-danger/90 text-danger-foreground"
+                  : "flex-1 bg-background border-border hover:bg-accent"
               }
             >
               Sell
             </Button>
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="amount">Quantity (Shares)</Label>
             <Input
@@ -341,48 +437,80 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
 
           <div className="flex space-x-2">
             <Button
-              variant={orderKind === 'MARKET' ? 'default' : 'outline'}
-              onClick={() => setOrderKind('MARKET')}
-              className={orderKind === 'MARKET' ? 'bg-primary text-primary-foreground' : ''}
+              variant={orderKind === "MARKET" ? "default" : "outline"}
+              onClick={() => setOrderKind("MARKET")}
+              className={
+                orderKind === "MARKET"
+                  ? "bg-primary text-primary-foreground"
+                  : ""
+              }
             >
               Market
             </Button>
             <Button
-              variant={orderKind === 'LIMIT' ? 'default' : 'outline'}
-              onClick={() => setOrderKind('LIMIT')}
-              className={orderKind === 'LIMIT' ? 'bg-primary text-primary-foreground' : ''}
+              variant={orderKind === "LIMIT" ? "default" : "outline"}
+              onClick={() => setOrderKind("LIMIT")}
+              className={
+                orderKind === "LIMIT"
+                  ? "bg-primary text-primary-foreground"
+                  : ""
+              }
             >
               Limit
             </Button>
           </div>
 
-          {orderKind === 'LIMIT' && (
+          {
             <div className="space-y-2">
-              <Label htmlFor="limitPrice">Limit Price ($)</Label>
+              <Label htmlFor="limitPrice">
+                {orderKind === "LIMIT"
+                  ? "Limit price"
+                  : tradeType === "buy"
+                    ? "Maximum buy price"
+                    : "Minimum sell price"}{" "}
+                ($)
+              </Label>
               <Input
                 id="limitPrice"
                 type="number"
+                min="0.01"
+                step="0.01"
                 value={limitPrice}
                 onChange={(e) => setLimitPrice(e.target.value)}
-                placeholder="Enter limit price"
+                placeholder={String(currentPrice)}
                 className="bg-background border-border"
               />
             </div>
-          )}
-          
-          <Button 
-            onClick={handleTrade} 
+          }
+
+          <Button
+            onClick={handleTrade}
             className={`w-full ${
-              tradeType === 'buy' 
-                ? 'bg-gradient-success hover:opacity-90' 
-                : 'bg-gradient-danger hover:opacity-90'
+              tradeType === "buy"
+                ? "bg-gradient-success hover:opacity-90"
+                : "bg-gradient-danger hover:opacity-90"
             } text-white`}
-            disabled={!tradeAmount || !isUuid(stock.id) || (orderKind === 'LIMIT' && !limitPrice)}
+            disabled={
+              !tradeAmount ||
+              submitting ||
+              !user ||
+              !isUuid(stock.id) ||
+              (orderKind === "LIMIT" && !limitPrice)
+            }
           >
-            {tradeType === 'buy' ? 'Buy' : 'Sell'} {stock.name}
+            {tradeType === "buy" ? "Buy" : "Sell"} {stock.name}
           </Button>
+          {!user && <p className="text-sm">Sign in to trade.</p>}
+          {orderKind === "MARKET" && (
+            <p className="text-sm text-muted-foreground">
+              Fills immediately within your price protection. Any remainder is
+              cancelled.
+            </p>
+          )}
           {!isUuid(stock.id) && (
-            <p className="text-sm text-muted-foreground mt-2">Trading disabled for this item (invalid asset id)</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Trading disabled for this item (invalid asset id)
+            </p>
           )}
         </CardContent>
       </Card>

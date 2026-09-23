@@ -11,7 +11,7 @@ import { ConfigModule } from '@nestjs/config';
   imports: [
     AssetModule,
     ConfigModule.forRoot({ isGlobal: true }),
-    PassportModule.register({defaultStrategy: 'jwt'}),
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     TypeOrmModule.forRoot({
       type: 'postgres',
       // Reads the connection string set in docker comp
@@ -19,7 +19,8 @@ import { ConfigModule } from '@nestjs/config';
       // Load any entity files.
       autoLoadEntities: true,
       // auto create tables depending on entities
-      synchronize: true,})
+      synchronize: false,
+    }),
   ],
   controllers: [AppController],
   providers: [AppService, JwtStrategy],

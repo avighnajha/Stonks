@@ -8,14 +8,16 @@ import { PriceHistory } from './entities/price-history.entity';
 import { Order } from './entities/order.entity';
 import { Trade } from './entities/trade.entity';
 import { RedisModule } from '../redis/redis.module';
+import { ExchangeService } from '../exchange/exchange.service';
+import { OutboxService } from '../exchange/outbox.service';
 
 @Module({
-    imports: [
+  imports: [
     TypeOrmModule.forFeature([LiquidityPool, PriceHistory, Order, Trade]),
     HttpModule,
     RedisModule,
-    ],
-    controllers: [TradeController],
-    providers: [TradeService],
+  ],
+  controllers: [TradeController],
+  providers: [TradeService, ExchangeService, OutboxService],
 })
 export class TradeModule {}

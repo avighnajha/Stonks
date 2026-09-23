@@ -1,105 +1,19 @@
-import { Body, Controller, Get, Patch, Post, Request, UseGuards, ValidationPipe, Logger, Param } from "@nestjs/common";
-import { HoldingService } from "./holding.service";
-import { AuthGuard } from "@nestjs/passport";
-import { InternalApiKeyGuard } from "src/auth/api_key.guard";
-
-
-class UpdateholdingsDto {
-    userId: string;
-    assetId: string;
-    //+ve buy, -ve sell
-    quantity: number;
-    tradePrice: number;
-}
-
-class FreezeHoldingsDto {
-    userId: string;
-    assetId: string;
-    quantity: number;
-}
-
-class SettlePortfolioDto {
-    buyerId: string;
-    sellerId: string;
-    assetId: string;
-    quantity: number;
-}
-
-class MintHoldingDto {
-    userId: string;
-    assetId: string;
-    quantity: number;
-}
+import { Controller, Get, Request, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { HoldingService } from './holding.service';
+import { InternalApiKeyGuard } from '../auth/api_key.guard';
 
 @Controller('portfolio')
-export class HoldingController{
-    private readonly logger = new Logger(HoldingController.name);
-    constructor(private readonly holdingService: HoldingService){}
-
-    @Get()
-    @UseGuards(AuthGuard('jwt'))
-    getPortfolio(@Request() req){
-        const userId = req.user && req.user.userId ? req.user.userId : null;
-        return this.holdingService.getPortfolio(userId)
-    }
-
-    @Patch("update")
-    @UseGuards(InternalApiKeyGuard)
-    updateHoldings(@Body(ValidationPipe) updateHoldingsDto: UpdateholdingsDto){
-        const {userId, assetId, quantity, tradePrice} = updateHoldingsDto;
-        this.logger.log(`------>PORTFOLIO SERVICE Updating portfolio for: ${userId} qty=${quantity} price=${tradePrice}`)
-        return this.holdingService.updateHoldings(userId, assetId, quantity, tradePrice);
-    }
-
-    @Post('freeze')
-    @UseGuards(InternalApiKeyGuard)
-    freezeHoldings(@Body(ValidationPipe) freezeDto: FreezeHoldingsDto){
-        const { userId, assetId, quantity } = freezeDto;
-        this.logger.log(`------>PORTFOLIO SERVICE Freezing holdings for: ${userId} ${assetId} qty=${quantity}`)
-        return this.holdingService.freezeHoldings(userId, assetId, quantity);
-    }
-
-    @Post('unfreeze')
-    @UseGuards(InternalApiKeyGuard)
-    unfreezeHoldings(@Body(ValidationPipe) freezeDto: FreezeHoldingsDto){
-        const { userId, assetId, quantity } = freezeDto;
-        this.logger.log(`------>PORTFOLIO SERVICE Unfreezing holdings for: ${userId} ${assetId} qty=${quantity}`)
-        return this.holdingService.unfreezeHoldings(userId, assetId, quantity);
-    }
-
-    @Post('settle')
-    @UseGuards(InternalApiKeyGuard)
-    settle(@Body(ValidationPipe) settleDto: SettlePortfolioDto){
-        const { buyerId, sellerId, assetId, quantity } = settleDto;
-        this.logger.log(`------>PORTFOLIO SERVICE Settling holdings for: ${buyerId} ${sellerId} ${assetId} qty=${quantity}`)
-        return this.holdingService.settleTrade(buyerId, sellerId, assetId, quantity);
-    }
-
-    @Get('debug/:userId')
-    @UseGuards(InternalApiKeyGuard)
-    debugHoldings(@Param('userId') userId: string){
-        this.logger.log(`------>PORTFOLIO SERVICE Debug holdings for: ${userId}`);
-        return this.holdingService.getHoldingsForUser(userId);
-    }
-
-    @Post('cleanup-duplicates')
-    @UseGuards(InternalApiKeyGuard)
-    cleanupDuplicateHoldings(){
-        this.logger.log('------>PORTFOLIO SERVICE Cleaning up duplicate holdings rows');
-        return this.holdingService.cleanupDuplicateHoldings();
-    }
-
-    @Post('mint')
-    @UseGuards(InternalApiKeyGuard)
-    mint(@Body(ValidationPipe) mintDto: MintHoldingDto){
-        const { userId, assetId, quantity } = mintDto;
-        this.logger.log(`------>PORTFOLIO SERVICE Minting holdings for: ${userId} ${assetId} qty=${quantity}`)
-        return this.holdingService.mintHolding(userId, assetId, quantity);
-    }
-
-    @Get('admin/all')
-    @UseGuards(InternalApiKeyGuard)
-    async getAllHoldings(){
-        return this.holdingService.getAllHoldings();
-    }
+export class HoldingController {
+  constructor(private readonly holdingService: HoldingService) {}
+  @Get()
+  @UseGuards(AuthGuard('jwt'))
+  getPortfolio(@Request() req) {
+    return this.holdingService.getPortfolio(req.user.userId);
+  }
+  @Get('admin/all')
+  @UseGuards(InternalApiKeyGuard)
+  getAllHoldings() {
+    return this.holdingService.getAllHoldings();
+  }
 }

@@ -1,3 +1,4 @@
+import { JwtGuard } from './jwt.guard';
 import { Module } from '@nestjs/common';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
@@ -8,16 +9,15 @@ import { HttpModule } from '@nestjs/axios';
 import { InternalApiKeyGuard } from '../auth/api_key.guard';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([User]),
-        JwtModule.register({
-            secret: process.env.JWT_SECRET!,
-            signOptions: {expiresIn:"1h"}
-        }),
-        HttpModule
-    ],
-    controllers: [UserController],
-    providers: [UserService, InternalApiKeyGuard],
+  imports: [
+    TypeOrmModule.forFeature([User]),
+    JwtModule.register({
+      secret: process.env.JWT_SECRET!,
+      signOptions: { expiresIn: '1h' },
+    }),
+    HttpModule,
+  ],
+  controllers: [UserController],
+  providers: [UserService, InternalApiKeyGuard, JwtGuard],
 })
-
 export class UserModule {}
