@@ -2,6 +2,8 @@
 
 The current milestone is exchange correctness and reliable human/bot access. Bot strategy implementation remains the owner's work in a separate repository.
 
+See [Research Lab design and financial mathematics guide](RESEARCH_LAB_GUIDE.md) for the proposed public observatory, isolated experiments, repository responsibilities, population comparisons and learning programme. These are proposals, not implemented features or final decisions.
+
 Discuss after the exchange foundation is verified:
 
 - Where bots run: independent processes/containers, local versus hosted, resource budgets, deployment and shutdown.

@@ -2,6 +2,8 @@
 
 ## Upgrade
 
+This section applies only when preserving an older database, including local Docker or Codespaces data. Nothing is currently deployed. For a new simulation with no data to preserve, initialise a fresh database and let the trading service create its schema.
+
 Back up PostgreSQL and stop **all** old application processes and compensation workers before deploying this version. Trading service owns schema migrations; automatic TypeORM synchronization is disabled in every service. Never run old and new settlement code against the same database.
 
 For an existing simulation, reconcile or cancel legacy open orders first. The migration refuses databases with open orders, frozen balances, duplicates or invalid balances; it does not guess which historical transfers succeeded. Restore and inspect a copy of the backup when reconciling. An opening ledger preserves the accepted legacy balances, but does not certify historical P&L. A fresh simulation database is preferable for research. Do not delete a database to bypass this check without explicitly deciding to discard that simulation.

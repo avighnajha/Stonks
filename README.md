@@ -8,13 +8,14 @@ The exchange owns validation, price/time matching, reservations, atomic settleme
 
 Use Node 22. Copy `.env.example` to `.env`, configure the secrets, then run `docker compose up --build`. Run `npm ci` and `npm run dev` in `frontend`. The gateway is available at `http://localhost:8080`, and Vite proxies requests to it.
 
-**Existing databases:** read [the upgrade procedure](docs/EXCHANGE_OPERATIONS.md) before starting the new services. The migration refuses unresolved legacy orders/reservations rather than silently changing balances. Back up first and stop all old services and compensation workers. Do not mix old/new accounting code.
+**Fresh simulations:** initialise a fresh database; there is no deployed system to migrate. If you want to preserve an older local or Codespaces database, read [the upgrade procedure](docs/EXCHANGE_OPERATIONS.md) first. It refuses unresolved legacy orders/reservations rather than silently changing balances.
 
 ## Contracts and evidence
 
 - [Participant API and recovery protocol](docs/PARTICIPANT_API.md)
 - [Accounting, operations and tests](docs/EXCHANGE_OPERATIONS.md)
 - [Deferred bot/simulation/research decisions](docs/RESEARCH_BACKLOG.md)
+- [Research Lab design and financial mathematics guide](docs/RESEARCH_LAB_GUIDE.md)
 
 Build the six services, set `TEST_DATABASE_URL` to a disposable PostgreSQL instance, and run `npm run test:integration` in `services/trading_service`. Tests create isolated schemas and cover concurrency, conservation, rollback, idempotency and the full HTTP flow. CI also checks service builds, unit tests and frontend types.
 
