@@ -54,6 +54,7 @@ export class ProxyController {
 
   // This helper function determines where to send the request.
   private getRecipientServiceUrl(url: string): string | null {
+    if (/^\/research(?:\/|\?|$)/.test(url)) return process.env.TRADING_SERVICE_URL!;
     if (url.startsWith('/auth')) {
       return process.env.USER_SERVICE_URL!;
     }

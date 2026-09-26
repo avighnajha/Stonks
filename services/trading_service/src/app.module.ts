@@ -9,10 +9,13 @@ import { JwtStrategy } from './auth/jwt.strategy';
 import { ConfigModule } from '@nestjs/config';
 import { AtomicExchange1790101000000 } from './exchange/schema';
 import { ExchangeClock1790460000000 } from './exchange/clock-schema';
+import { Research1790461000000 } from './research/schema';
+import { ResearchModule } from './research/research.module';
 
 @Module({
   imports: [
     TradeModule,
+    ResearchModule,
     ConfigModule.forRoot({ isGlobal: true }),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     TypeOrmModule.forRoot({
@@ -23,7 +26,7 @@ import { ExchangeClock1790460000000 } from './exchange/clock-schema';
       autoLoadEntities: true,
       // auto create tables depending on entities
       synchronize: false,
-      migrations: [AtomicExchange1790101000000, ExchangeClock1790460000000],
+      migrations: [AtomicExchange1790101000000, ExchangeClock1790460000000, Research1790461000000],
       migrationsRun: true,
     }),
   ],

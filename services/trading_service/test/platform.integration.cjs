@@ -12,7 +12,7 @@ if (!url) throw new Error('TEST_DATABASE_URL is required');
 const schema = `platform_test_${randomUUID().replaceAll('-', '')}`;
 const children = [],
   logs = {};
-let client, base;
+let client, base, workerEnv;
 async function freePort() {
   const s = net.createServer();
   s.listen(0, '127.0.0.1');
@@ -54,6 +54,7 @@ before(async () => {
     DATABASE_URL: dbUrl.toString(),
     JWT_SECRET: randomUUID() + randomUUID(),
     INTERNAL_API_KEY: randomUUID(),
+    RESEARCH_WORKER_KEY: randomUUID(),
     REDIS_URL: 'redis://127.0.0.1:1',
     NODE_ENV: 'test',
     USER_SERVICE_URL: `http://127.0.0.1:${ports.user_service}`,
@@ -62,6 +63,7 @@ before(async () => {
     MARKETPLACE_SERVICE_URL: `http://127.0.0.1:${ports.marketplace_service}`,
     TRADING_SERVICE_URL: `http://127.0.0.1:${ports.trading_service}`,
   };
+  workerEnv={...env,RESEARCH_API_URL:`http://127.0.0.1:${ports.trading_service}`,STONKS_EXCHANGE_DIR:path.resolve(__dirname,'../../..'),RESEARCH_DATABASE_ADMIN_URL:url};
   for (const name of names) {
     logs[name] = '';
     const child = spawn(
@@ -113,7 +115,7 @@ async function request(route, method = 'GET', body, token, key) {
 }
 test(
   'registration, issuance, execution, account recovery and authorization through the gateway',
-  { timeout: 60000 },
+  { timeout: 120000 },
   async () => {
     const password = 'test-account-password-123';
     const a = await request('/auth/register', 'POST', {
@@ -162,7 +164,7 @@ test(
       issue,
       admin,
     );
-    assert.equal(approved.status, 200, JSON.stringify(approved));
+    assert.equal(approved.status, 200, JSON.stringify(approved) + logs.trading_service);
     assert.equal(
       (await request(`/assets/${id}/approve`, 'PATCH', issue, admin)).status,
       200,
@@ -261,5 +263,23 @@ test(
       ).status,
       404,
     );
+    const manifest={version:1,durationMs:2000,stepMs:1000,seed:42,assets:[{id:'a',name:'A',sector:'Sports',subsector:'Football',price:'100.00',marketWeight:0,sectorWeight:0,subsectorWeight:0,idiosyncraticWeight:0}],groups:[{id:'g',strategy:'idle',count:1,cash:'1000',inventory:'10',wakeMs:1000,delayMs:0,signalNoise:0,parameters:{}}],events:[]};
+    assert.equal((await request('/research/experiments')).status,401);
+    const exp=await request('/research/experiments','POST',{title:'Research',hypothesis:'Test',manifest},buyer);
+    assert.equal(exp.status,201,JSON.stringify(exp));
+    const launch=await request(`/research/experiments/${exp.data.id}/runs`,'POST',{},buyer,'research-key');
+    assert.equal(launch.status,201,JSON.stringify(launch));
+    assert.equal((await request(`/research/runs/${launch.data.id}`,'GET',undefined,admin)).status,404);
+    assert.equal((await request(`/research/runs/${launch.data.id}`,'GET',undefined,buyer)).data.status,'QUEUED');
+    assert.equal((await request(`/research/runs/${launch.data.id}/cancel`,'POST',{},buyer)).data.status,'CANCELLED');
+    assert.notEqual((await request('/research-worker/claim','POST',{},buyer)).status,201);
+    if(process.env.SIMULATION_REPO&&process.env.PYTHON_BINARY){
+      const live=await request(`/research/experiments/${exp.data.id}/runs`,'POST',{},buyer,'worker-run');
+      const worker=spawn(process.env.PYTHON_BINARY,['-m','stonks_sim.worker','--once'],{cwd:process.env.SIMULATION_REPO,env:workerEnv,windowsHide:true,stdio:['ignore','pipe','pipe']});
+      let output='';worker.stdout.on('data',x=>output+=x);worker.stderr.on('data',x=>output+=x);children.push(worker);
+      const [code]=await once(worker,'exit');assert.equal(code,0,output);
+      const completed=await request(`/research/runs/${live.data.id}`,'GET',undefined,buyer);
+      assert.equal(completed.data.status,'COMPLETED',JSON.stringify(completed));assert.ok(completed.data.result.economicHash);
+    }
   },
 );
