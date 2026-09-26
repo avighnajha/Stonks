@@ -6,6 +6,7 @@ const { Client } = require('pg');
 const { DataSource } = require('typeorm');
 const { ExchangeService } = require('../dist/exchange/exchange.service');
 const { AtomicExchange1790101000000 } = require('../dist/exchange/schema');
+const { ExchangeClock1790460000000 } = require('../dist/exchange/clock-schema');
 const { OutboxService } = require('../dist/exchange/outbox.service');
 const url = process.env.TEST_DATABASE_URL;
 if (!url)
@@ -34,6 +35,7 @@ before(async () => {
   await runner.startTransaction();
   try {
     await new AtomicExchange1790101000000().up(runner);
+    await new ExchangeClock1790460000000().up(runner);
     await runner.commitTransaction();
   } catch (e) {
     await runner.rollbackTransaction();
@@ -380,4 +382,27 @@ test('news validates inputs and replays once across retries', async () => {
   await assert.rejects(
     engine.news(buyer, key, { ...news, headline: 'different' }),
   );
+});
+
+test('controlled commands use injected time and IDs without leaking time into live commands', async () => {
+  let tick = 1000, counter = 0;
+  const controlled = new ExchangeService(db.manager, {
+    now: () => new Date(Date.UTC(2000, 0, 1) + tick),
+    id: () => `00000000-0000-4000-8000-${String(++counter).padStart(12, '0')}`,
+  });
+  const ask = await controlled.place(seller, 'clock-ask', {assetId:asset,side:'SELL',type:'LIMIT',price:'90',quantity:'2'});
+  assert.equal(ask.orderId, '00000000-0000-4000-8000-000000000001');
+  tick = 9000;
+  await controlled.place(buyer, 'clock-buy', {assetId:asset,side:'BUY',type:'MARKET',price:'100',quantity:'1'});
+  const [trade] = await db.query('SELECT timestamp FROM trades');
+  assert.equal(trade.timestamp.toISOString(), '2000-01-01T00:00:09.000Z');
+  const [order] = await db.query('SELECT created_at,updated_at FROM orders WHERE id=$1',[ask.orderId]);
+  assert.equal(order.created_at.toISOString(), '2000-01-01T00:00:01.000Z');
+  assert.equal(order.updated_at.toISOString(), '2000-01-01T00:00:09.000Z');
+  const events = await controlled.events('0');
+  assert.equal(new Date(events.events.at(-1).timestamp).toISOString(), trade.timestamp.toISOString());
+  await place(buyer,'BUY',1,1);
+  const [live] = await db.query('SELECT created_at FROM orders ORDER BY sequence DESC LIMIT 1');
+  assert.ok(live.created_at.getUTCFullYear() >= 2026);
+  await invariants();
 });

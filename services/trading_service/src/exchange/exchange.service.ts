@@ -2,10 +2,12 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Inject,
+  Optional,
   NotFoundException,
 } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
-import { randomUUID } from 'crypto';
+import { EXCHANGE_RUNTIME, ExchangeRuntime, liveRuntime } from './runtime';
 import { balanceUnits, decimal, units } from './decimal';
 
 export const EXCHANGE_LOCK = 73190421;
@@ -20,7 +22,8 @@ export interface OrderInput {
 
 @Injectable()
 export class ExchangeService {
-  constructor(private readonly manager: EntityManager) {}
+  constructor(private readonly manager: EntityManager,
+    @Optional() @Inject(EXCHANGE_RUNTIME) private readonly runtime: ExchangeRuntime = liveRuntime) {}
 
   private async command(
     userId: string,
@@ -35,6 +38,7 @@ export class ExchangeService {
       await m.query("SET LOCAL statement_timeout = '10s'");
       // Global sequencing prevents cross-asset spending races and empty-book crossed arrivals.
       await m.query('SELECT pg_advisory_xact_lock($1)', [EXCHANGE_LOCK]);
+      await m.query("SELECT set_config('stonks.logical_time',$1,true)", [this.runtime.now().toISOString()]);
       const [old] = await m.query(
         'SELECT request,response FROM exchange_commands WHERE user_id=$1 AND key=$2',
         [userId, key],
@@ -206,7 +210,7 @@ export class ExchangeService {
     if (!order) throw new NotFoundException('Order not found');
     const fills = await this.manager.query(
       `SELECT id,asset_id,price,quantity,timestamp
-      FROM trades WHERE buy_order_id=$1 OR sell_order_id=$1 ORDER BY timestamp,id`,
+      FROM trades WHERE buy_order_id=$1 OR sell_order_id=$1 ORDER BY sequence`,
       [id],
     );
     return { ...order, fills };
@@ -267,10 +271,10 @@ export class ExchangeService {
     const price = decimal(p, 2),
       quantity = decimal(qty, 4),
       reserve = decimal(p * qty, 6);
-    const id = randomUUID();
+    const id = this.runtime.id();
     if (input.side === 'BUY') {
       const rows = await m.query(
-        `UPDATE wallets SET balance=balance-$2,frozen_balance=frozen_balance+$2,updated_at=now()
+        `UPDATE wallets SET balance=balance-$2,frozen_balance=frozen_balance+$2,updated_at=exchange_now()
         WHERE user_id=$1 AND balance >= $2 RETURNING id`,
         [user, reserve],
       );
@@ -352,13 +356,13 @@ export class ExchangeService {
       c = decimal(cost, 6),
       b = decimal(budget, 6),
       improvement = decimal(budget - cost, 6);
-    const tradeId = randomUUID();
+    const tradeId = this.runtime.id();
     await m.query(
-      `UPDATE wallets SET frozen_balance=frozen_balance-$2,balance=balance+$3,updated_at=now() WHERE user_id=$1`,
+      `UPDATE wallets SET frozen_balance=frozen_balance-$2,balance=balance+$3,updated_at=exchange_now() WHERE user_id=$1`,
       [buy.user_id, b, improvement],
     );
     await m.query(
-      'UPDATE wallets SET balance=balance+$2,updated_at=now() WHERE user_id=$1',
+      'UPDATE wallets SET balance=balance+$2,updated_at=exchange_now() WHERE user_id=$1',
       [sell.user_id, c],
     );
     await m.query(
@@ -394,7 +398,7 @@ export class ExchangeService {
         4,
       );
       await m.query(
-        `UPDATE orders SET remaining_quantity=$2,status=$3,reserved_cash=$4,reserved_quantity=$5,updated_at=now() WHERE id=$1`,
+        `UPDATE orders SET remaining_quantity=$2,status=$3,reserved_cash=$4,reserved_quantity=$5,updated_at=exchange_now() WHERE id=$1`,
         [
           order.id,
           order.remaining_quantity,
@@ -463,7 +467,7 @@ export class ExchangeService {
   private async release(m: EntityManager, order: any) {
     if (order.side === 'BUY') {
       await m.query(
-        'UPDATE wallets SET balance=balance+$2,frozen_balance=frozen_balance-$2,updated_at=now() WHERE user_id=$1',
+        'UPDATE wallets SET balance=balance+$2,frozen_balance=frozen_balance-$2,updated_at=exchange_now() WHERE user_id=$1',
         [order.user_id, order.reserved_cash],
       );
       await this.ledger(
@@ -496,7 +500,7 @@ export class ExchangeService {
     order.reserved_cash = '0';
     order.reserved_quantity = '0';
     await m.query(
-      "UPDATE orders SET status='CANCELLED',reserved_cash=0,reserved_quantity=0,updated_at=now() WHERE id=$1",
+      "UPDATE orders SET status='CANCELLED',reserved_cash=0,reserved_quantity=0,updated_at=exchange_now() WHERE id=$1",
       [order.id],
     );
   }
@@ -584,7 +588,7 @@ export class ExchangeService {
           );
         }
         await m.query(
-          `UPDATE assets SET status='approved',initial_price=$2,total_supply=$3,creator_split_percentage=$4,updated_at=now() WHERE id=$1`,
+          `UPDATE assets SET status='approved',initial_price=$2,total_supply=$3,creator_split_percentage=$4,updated_at=exchange_now() WHERE id=$1`,
           [assetId, decimal(p, 2), decimal(total, 4), decimal(pct, 2)],
         );
         if (platform > 0n)

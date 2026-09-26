@@ -8,6 +8,7 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { ConfigModule } from '@nestjs/config';
 import { AtomicExchange1790101000000 } from './exchange/schema';
+import { ExchangeClock1790460000000 } from './exchange/clock-schema';
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { AtomicExchange1790101000000 } from './exchange/schema';
       autoLoadEntities: true,
       // auto create tables depending on entities
       synchronize: false,
-      migrations: [AtomicExchange1790101000000],
+      migrations: [AtomicExchange1790101000000, ExchangeClock1790460000000],
       migrationsRun: true,
     }),
   ],
