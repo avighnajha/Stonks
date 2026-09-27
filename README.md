@@ -16,7 +16,8 @@ Use Node 22. Copy `.env.example` to `.env`, configure the secrets, then run `doc
 - [Accounting, operations and tests](docs/EXCHANGE_OPERATIONS.md)
 - [Deferred bot/simulation/research decisions](docs/RESEARCH_BACKLOG.md)
 - [Research infrastructure and Python worker setup](docs/RESEARCH_OPERATIONS.md)
+- [First VPS test run](docs/VPS_QUICKSTART.md)
 
 Build the six services, set `TEST_DATABASE_URL` to a disposable PostgreSQL instance, and run `npm run test:integration` in `services/trading_service`. Tests create isolated schemas and cover concurrency, conservation, rollback, idempotency and the full HTTP flow. CI also checks service builds, unit tests and frontend types.
 
-Current scope is cash-backed spot trading, limit orders and protected immediate-or-cancel market orders. No margin, shorting, fees, auctions or deterministic bot scheduler are claimed. A global transaction sequencer favors correctness; throughput limits must be benchmarked before large bot runs. Historical project notes in `docs/PROJECT_CONTEXT_FULL.md` describe earlier versions and are not the current API contract.
+Current scope is cash-backed spot trading, limit orders and protected immediate-or-cancel market orders. Controlled research runs use the separate Python scheduler and isolated exchange state; the shared market uses wall time. No margin, shorting, fees or auctions are implemented. A global transaction sequencer favors correctness; throughput limits must be benchmarked before large bot runs. Historical project notes in `docs/PROJECT_CONTEXT_FULL.md` describe earlier versions and are not the current API contract.

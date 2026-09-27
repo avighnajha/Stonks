@@ -23,7 +23,9 @@ This is engineering documentation; personal planning/learning documents stay out
 - Exchange matching/accounting remains a single implementation. A JSON-lines adapter
   allows the Python runner to call it without using browser/network arrival order.
 - Per-run databases and restricted roles live on a dedicated research PostgreSQL server.
-  The provisioner credential is never given to strategies or browsers.
+  Provisioner credentials are excluded from browser responses and strategy callback
+  data. Installed Python runs in the trusted worker process, which has these
+  credentials in its environment; this is not isolation from malicious strategies.
 - Only operator-installed strategies are executable. This is not a sandbox for arbitrary
   uploaded Python. Controlled strategy context cannot guarantee isolation from malicious
   code in the same Python process; untrusted code hosting is deferred.

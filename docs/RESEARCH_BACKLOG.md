@@ -1,17 +1,33 @@
-# Deferred simulation and research decisions
+# Research follow-up work
 
-The current milestone is exchange correctness and reliable human/bot access. Bot strategy implementation remains the owner's work in a separate repository.
+Implemented infrastructure and operating instructions are in
+[RESEARCH_OPERATIONS.md](RESEARCH_OPERATIONS.md). Personal planning notes remain
+outside the repository. Python strategies remain the owner's learning work.
 
-Discuss after the exchange foundation is verified:
+## Decisions implemented
 
-- Where bots run: independent processes/containers, local versus hosted, resource budgets, deployment and shutdown.
-- Live wall-clock trading versus deterministic accelerated experiments; how to control latency and randomness without changing exchange rules.
-- Agent populations and distributions: market makers, informed/value traders, noise/liquidity traders, execution agents; capital, inventory, risk, horizon and information differences.
-- Population size and activity rates: calibrate to measurable spread, depth, volume and impact rather than choosing a large count for appearance.
-- Number and kinds of assets; issuance, cross-asset relationships, common factors and liquidity concentration.
-- Dynamic regimes: agent entry/exit, changing capital and participation, liquidity shocks and news.
-- News semantics: hidden fundamentals versus public/noisy signals, observation delays and information access.
-- Reproducibility: run manifests, seeds, versions, event records, resets and independent scenario sets.
-- Research questions, baselines, costs, out-of-sample scenarios, ablations and limitations on transferring simulated alpha to real markets.
+- Separate Python strategy/worker repository; one active run per worker initially.
+- Real-time shared market; accelerated, deterministic event scheduling for research.
+- Independent database, books, accounts and allocations for every run.
+- Versioned asset snapshots, sector/subsector factors, private delayed/noisy observations.
+- Personal experiments, immutable run configurations, seed repetition and basic sweeps.
+- Result exports and baseline liquidity/price-discovery/P&L measurements.
 
-Separate bot repository is the intended boundary. Exchange owns matching, validation, balances and participant-facing data; bots use the same authenticated contract as humans. Privileged simulator controls must not leak into ordinary market data.
+## Next work
+
+- Owner-written market makers, value/informed traders, liquidity/noise traders and
+  execution agents. Calibrate activity, capital, inventory, risk and information.
+- Choose populations and asset counts against measured spread, depth, volume and
+  impact; establish stable baselines before adding complexity.
+- A real-time bot adapter for the shared market. Controlled research strategies use
+  callbacks and the engine bridge; they do not yet run against the live REST API.
+- Dynamic entry/exit, changing participation and capital, richer liquidity regimes.
+- Repeated-seed statistics, held-out scenarios, ablations and execution-risk measures.
+- VPS capacity, monitoring, backups, retention and orphan-run cleanup procedures.
+- A deployment manifest that pins both repository versions and runtime images.
+
+## Later, by explicit design
+
+Public sharing; untrusted uploaded code sandboxing; distributed workers; execution
+latency models; configurable fees; shorting/margin; derivatives; external news.
+There is no claim that simulated alpha transfers to real markets.
