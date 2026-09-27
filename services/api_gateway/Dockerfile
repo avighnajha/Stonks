@@ -1,23 +1,15 @@
-# services/api_gateway/Dockerfile
-
-# Start with the official Node.js image
-FROM node:18-alpine
-
-# Set the working directory inside the container
+FROM node:22-alpine AS build
 WORKDIR /usr/src/app
-
-# Copy ONLY the package files to leverage Docker caching
 COPY package*.json ./
-
-# Install ALL dependencies, including devDependencies
-RUN npm install
-
-# Ensure NestJS CLI is available globally
-RUN npm install -g @nestjs/cli
-
-# Copy the rest of the application code
+RUN npm ci
 COPY . .
+RUN npm run build && npm prune --omit=dev
 
-# Expose the port the gateway will run on.
-# This should match the PORT environment variable in your docker-compose.yml
-EXPOSE 8080
+FROM node:22-alpine
+ENV NODE_ENV=production
+WORKDIR /usr/src/app
+COPY --from=build --chown=node:node /usr/src/app/package*.json ./
+COPY --from=build --chown=node:node /usr/src/app/node_modules ./node_modules
+COPY --from=build --chown=node:node /usr/src/app/dist ./dist
+USER node
+CMD ["node", "dist/main.js"]

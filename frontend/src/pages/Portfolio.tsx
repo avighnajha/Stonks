@@ -1,263 +1,125 @@
-import { TrendingUp, TrendingDown, DollarSign, PieChart, BarChart3 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import axiosInstance from '@/api/axiosInstance';
-
-type Position = {
-  id: string;
-  name: string;
-  image?: string;
-  shares: number;
-  avgPrice: number;
-  currentPrice: number;
-  invested: number;
-  currentValue: number;
-  gainLoss: number;
-  gainLossPercent: number;
-};
-
-type PortfolioData = {
-  totalValue: number;
-  totalInvested: number;
-  totalGainLoss: number;
-  totalGainLossPercent: number;
-  availableBalance: number;
-  positions: Position[];
-};
-
-const emptyPortfolio: PortfolioData = {
-  totalValue: 0,
-  totalInvested: 0,
-  totalGainLoss: 0,
-  totalGainLossPercent: 0,
-  availableBalance: 0,
-  positions: []
-};
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import axios from "@/api/axiosInstance";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MyOrders } from "@/components/MyOrders";
 
 export const Portfolio = () => {
   const { user } = useAuth();
-  const [portfolioData, setPortfolioData] = useState<PortfolioData>(emptyPortfolio);
-  const [loading, setLoading] = useState(false);
-
+  const [account, setAccount] = useState<any>(null),
+    [error, setError] = useState("");
   useEffect(() => {
-    let mounted = true;
-    const fetchPortfolio = async () => {
-      if (!user?.id) return;
-      setLoading(true);
+    if (!user) {
+      setAccount(null);
+      return;
+    }
+    let active = true;
+    const load = async () => {
       try {
-        const res = await axiosInstance.get(`/portfolio`);
-        const data = res.data || [];
-        if (!mounted) return;
-
-        const positions = Array.isArray(data)
-          ? data.map((p: any) => {
-              const shares = Number(p.quantity ?? 0);
-              const avgPrice = Number(p.averageBuyPrice ?? 0);
-              const currentPrice = Number(p.currentPrice ?? 0);
-              const invested = avgPrice * shares;
-              const currentValue = Number(p.currentValue ?? currentPrice * shares);
-              const gainLoss = currentValue - invested;
-              const gainLossPercent = invested !== 0 ? (gainLoss / invested) * 100 : 0;
-
-              return {
-                id: p.assetId || p.id || `${p.assetId}-${Math.random()}`,
-                name: p.name || p.assetName || p.assetId || 'Unknown',
-                image: p.image || '',
-                shares,
-                avgPrice,
-                currentPrice,
-                invested,
-                currentValue,
-                gainLoss,
-                gainLossPercent,
-              };
-            })
-          : [];
-
-        const totalValue = positions.reduce((sum, position) => sum + position.currentValue, 0);
-        const totalInvested = positions.reduce((sum, position) => sum + position.invested, 0);
-        const totalGainLoss = positions.reduce((sum, position) => sum + position.gainLoss, 0);
-        const totalGainLossPercent = totalInvested !== 0 ? (totalGainLoss / totalInvested) * 100 : 0;
-
-        const mapped: PortfolioData = {
-          totalValue,
-          totalInvested,
-          totalGainLoss,
-          totalGainLossPercent,
-          availableBalance: user?.balance ?? 0,
-          positions,
-        };
-
-        setPortfolioData(mapped);
-      } catch (err) {
-        // keep empty
-      } finally {
-        setLoading(false);
+        const { data } = await axios.get("/trade/account");
+        if (active) {
+          setAccount(data);
+          setError("");
+        }
+      } catch {
+        if (active)
+          setError("Account data unavailable. Displayed values may be stale.");
       }
     };
-
-    fetchPortfolio();
-    const onUpdated = () => { fetchPortfolio(); };
-    window.addEventListener('portfolio:updated', onUpdated);
-    return () => { mounted = false; };
-  }, [user]);
-
-  const isPositiveTotal = portfolioData.totalGainLoss >= 0;
-
+    void load();
+    const timer = setInterval(load, 5000);
+    window.addEventListener("portfolio:updated", load);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      window.removeEventListener("portfolio:updated", load);
+    };
+  }, [user?.id]);
+  if (!user)
+    return (
+      <div className="container p-6">
+        Sign in to view your account and orders.
+      </div>
+    );
+  const positions = account?.positions || [],
+    free = Number(account?.wallet.balance || 0),
+    reserved = Number(account?.wallet.frozen_balance || 0);
+  const holdings = positions.reduce(
+    (sum: number, p: any) => sum + Number(p.currentValue),
+    0,
+  );
+  const money = (n: number) =>
+    n.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 6,
+    });
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-          Portfolio
-        </h1>
-        <p className="text-muted-foreground">
-          Track your investment performance and holdings
+    <div className="container p-6 space-y-6">
+      <h1 className="text-3xl font-bold">Portfolio</h1>
+      {error && (
+        <p role="alert" className="text-destructive">
+          {error}
         </p>
-      </div>
-
-      {/* Portfolio Overview */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="bg-gradient-card border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center space-x-2">
-              <DollarSign className="h-4 w-4 text-primary" />
-              <span>Total Value</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <p className="text-2xl font-bold">${portfolioData.totalValue.toLocaleString()}</p>
-              <div className={`flex items-center space-x-1 text-sm ${
-                isPositiveTotal ? 'text-success' : 'text-danger'
-              }`}>
-                {isPositiveTotal ? (
-                  <TrendingUp className="h-3 w-3" />
-                ) : (
-                  <TrendingDown className="h-3 w-3" />
-                )}
-                <span>
-                  {isPositiveTotal ? '+' : ''}${portfolioData.totalGainLoss.toLocaleString()} 
-                  ({portfolioData.totalGainLossPercent.toFixed(2)}%)
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-card border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center space-x-2">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              <span>Total Invested</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <p className="text-2xl font-bold">${portfolioData.totalInvested.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">Across {portfolioData.positions.length} positions</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-card border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center space-x-2">
-              <PieChart className="h-4 w-4 text-primary" />
-              <span>Available Cash</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              <p className="text-2xl font-bold">${portfolioData.availableBalance.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">Ready to invest</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Performance Chart */}
-      <Card className="bg-gradient-card border-border">
-        <CardHeader>
-          <CardTitle>Performance Overview</CardTitle>
-          <CardDescription>Your portfolio performance over time</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="w-full flex justify-center">
-            <svg width="320" height="160" className="overflow-visible">
-              <defs>
-                <linearGradient id="portfolioGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0,120 L 40,110 L 80,100 L 120,90 L 160,80 L 200,70 L 240,60 L 280,50 L 320,40"
-                fill="none"
-                stroke="hsl(var(--primary))"
-                strokeWidth="3"
-                className="drop-shadow-sm"
-              />
-              <path
-                d="M 0,120 L 40,110 L 80,100 L 120,90 L 160,80 L 200,70 L 240,60 L 280,50 L 320,40 L 320,160 L 0,160 Z"
-                fill="url(#portfolioGradient)"
-              />
-            </svg>
+      )}
+      {!account && !error && <p>Loading account…</p>}
+      {account && (
+        <>
+          <div className="grid gap-4 md:grid-cols-3">
+            {[
+              ["Account equity", free + reserved + holdings],
+              ["Available cash", free],
+              ["Reserved cash", reserved],
+            ].map(([label, value]) => (
+              <Card key={String(label)}>
+                <CardHeader>
+                  <CardTitle>{label}</CardTitle>
+                </CardHeader>
+                <CardContent>${money(Number(value))}</CardContent>
+              </Card>
+            ))}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Holdings */}
-      <Card className="bg-gradient-card border-border">
-        <CardHeader>
-          <CardTitle>Your Holdings</CardTitle>
-          <CardDescription>Individual positions in your portfolio</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {portfolioData.positions.map((position) => {
-            const isPositive = position.gainLoss >= 0;
-            
-            return (
-              <div 
-                key={position.id} 
-                className="flex items-center justify-between p-4 bg-background rounded-lg border border-border hover:bg-accent transition-colors"
-              >
-                <div className="flex items-center space-x-4">
-                  <img 
-                    src={position.image} 
-                    alt={position.name}
-                    className="w-12 h-12 rounded-full object-cover border-2 border-border"
-                  />
-                  <div>
-                    <h3 className="font-semibold">{position.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {position.shares} shares @ ${position.avgPrice.toFixed(2)} avg
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="text-right space-y-1">
-                  <p className="font-semibold">${position.currentValue.toLocaleString()}</p>
-                  <div className={`flex items-center justify-end space-x-1 text-sm ${
-                    isPositive ? 'text-success' : 'text-danger'
-                  }`}>
-                    {isPositive ? (
-                      <TrendingUp className="h-3 w-3" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3" />
-                    )}
-                    <span>
-                      {isPositive ? '+' : ''}${Math.abs(position.gainLoss).toFixed(2)} 
-                      ({position.gainLossPercent.toFixed(2)}%)
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Positions</CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead>
+                  <tr>
+                    <th>Asset</th>
+                    <th>Owned</th>
+                    <th>Reserved</th>
+                    <th>Average cost</th>
+                    <th>Marked value</th>
+                    <th>Unrealized P&L</th>
+                    <th>Realized P&L</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {positions.map((p: any) => (
+                    <tr key={p.assetId} className="border-t">
+                      <td className="py-3">{p.name}</td>
+                      <td>{p.quantity}</td>
+                      <td>{p.reservedQuantity}</td>
+                      <td>{money(Number(p.averageBuyPrice))}</td>
+                      <td>{money(Number(p.currentValue))}</td>
+                      <td>{money(Number(p.profitLoss))}</td>
+                      <td>{money(Number(p.realizedPnl))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!positions.length && <p>No positions yet.</p>}
+              <p className="text-xs text-muted-foreground mt-3">
+                Values include reserved assets, marked at the last trade or
+                initial listing price. Marked value is not guaranteed
+                liquidation value.
+              </p>
+            </CardContent>
+          </Card>
+        </>
+      )}
+      <MyOrders />
     </div>
   );
 };

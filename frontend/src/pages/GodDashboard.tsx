@@ -1,41 +1,76 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import useSocket from '@/hooks/useSocket';
-import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft } from 'lucide-react';
-import { getAdminLeaderboard, getAdminMarketStats, getAdminOrderBook, getAdminAllTrades, getAdminPriceHistory, getApprovedAssets, injectNews } from '@/api/admin.api';
-import { LineChart, Line, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts';
-import { toast } from 'sonner';
+import { useEffect, useMemo, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import useSocket from "@/hooks/useSocket";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ArrowLeft } from "lucide-react";
+import {
+  getAdminLeaderboard,
+  getAdminMarketStats,
+  getAdminOrderBook,
+  getAdminAllTrades,
+  getAdminPriceHistory,
+  getApprovedAssets,
+  injectNews,
+} from "@/api/admin.api";
+import {
+  LineChart,
+  Line,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  Legend,
+} from "recharts";
+import { toast } from "sonner";
 
-const formatMoney = (value: number) => `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+const formatMoney = (value: number) =>
+  `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
 const GodDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const socket = useSocket();
+  const seenTrades = useRef(new Set<string>());
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
   const [tradeLog, setTradeLog] = useState<string[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [timeframe, setTimeframe] = useState<string>('1h');
+  const [timeframe, setTimeframe] = useState<string>("1h");
   const [visibleAssets, setVisibleAssets] = useState<Set<string>>(new Set());
   const [liveChartData, setLiveChartData] = useState<any[]>([]);
-  const [newsAssetId, setNewsAssetId] = useState<string>('');
-  const [newsHeadline, setNewsHeadline] = useState<string>('');
+  const [newsAssetId, setNewsAssetId] = useState<string>("");
+  const [newsHeadline, setNewsHeadline] = useState<string>("");
   const [newsSentiment, setNewsSentiment] = useState<number>(50);
 
-  const { data: stats, isLoading: statsLoading, error: statsError } = useQuery<any, Error>({
-    queryKey: ['admin-market-stats'],
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    error: statsError,
+  } = useQuery<any, Error>({
+    queryKey: ["admin-market-stats"],
     queryFn: getAdminMarketStats,
+    refetchInterval: 5000,
   });
 
-  const { data: leaderboard, isLoading: leaderboardLoading, error: leaderboardError } = useQuery<any[], Error>({
-    queryKey: ['admin-leaderboard'],
+  const {
+    data: leaderboard,
+    isLoading: leaderboardLoading,
+    error: leaderboardError,
+  } = useQuery<any[], Error>({
+    queryKey: ["admin-leaderboard"],
     queryFn: getAdminLeaderboard,
+    refetchInterval: 5000,
   });
 
   // Get top 5 assets by volume
@@ -53,11 +88,15 @@ const GodDashboard = () => {
 
   // Fetch historical data for top assets
   const { data: priceHistories } = useQuery({
-    queryKey: ['price-histories', topAssets.map((a: any) => a.assetId), timeframe],
+    queryKey: [
+      "price-histories",
+      topAssets.map((a: any) => a.assetId),
+      timeframe,
+    ],
     queryFn: async () => {
       if (topAssets.length === 0) return {};
       const promises = topAssets.map((asset: any) =>
-        getAdminPriceHistory(asset.assetId, timeframe)
+        getAdminPriceHistory(asset.assetId, timeframe),
       );
       const results = await Promise.all(promises);
       const historyMap: Record<string, any[]> = {};
@@ -89,11 +128,15 @@ const GodDashboard = () => {
 
     // Build chart data with each asset as a separate line
     const formattedData = sortedTimestamps.map((timestamp) => {
-      const dataPoint: any = { timestamp: new Date(timestamp).toLocaleTimeString() };
+      const dataPoint: any = {
+        timestamp: new Date(timestamp).toLocaleTimeString(),
+      };
       topAssets.forEach((asset: any) => {
         const history = priceHistories[asset.assetId] || [];
-        const point = history.find((p: any) => new Date(p.timestamp).toISOString() === timestamp);
-        dataPoint[asset.assetId] = point ? point.close : null;
+        const point = history.find(
+          (p: any) => new Date(p.timestamp).toISOString() === timestamp,
+        );
+        dataPoint[asset.assetId] = point ? Number(point.close) : null;
       });
       return dataPoint;
     });
@@ -103,33 +146,41 @@ const GodDashboard = () => {
 
   // Fetch all approved assets for order book selector
   const { data: approvedAssets } = useQuery({
-    queryKey: ['approved-assets'],
+    queryKey: ["approved-assets"],
     queryFn: getApprovedAssets,
   });
 
   const { data: orderBook, refetch: refetchOrderBook } = useQuery<any, Error>({
-    queryKey: ['admin-order-book', selectedAsset],
-    queryFn: () => (selectedAsset ? getAdminOrderBook(selectedAsset) : Promise.resolve({ buys: [], sells: [] })),
+    queryKey: ["admin-order-book", selectedAsset],
+    queryFn: () =>
+      selectedAsset
+        ? getAdminOrderBook(selectedAsset)
+        : Promise.resolve({ buys: [], sells: [] }),
     enabled: !!selectedAsset,
   });
 
-  const { data: allTrades, refetch: refetchAllTrades } = useQuery<any[], Error>({
-    queryKey: ['admin-all-trades'],
-    queryFn: getAdminAllTrades,
-    enabled: false,
-  });
+  const { data: allTrades, refetch: refetchAllTrades } = useQuery<any[], Error>(
+    {
+      queryKey: ["admin-all-trades"],
+      queryFn: getAdminAllTrades,
+      enabled: false,
+    },
+  );
 
   // Log errors
-  if (statsError) console.error('Stats error:', statsError);
-  if (leaderboardError) console.error('Leaderboard error:', leaderboardError);
+  if (statsError) console.error("Stats error:", statsError);
+  if (leaderboardError) console.error("Leaderboard error:", leaderboardError);
 
   const statusText = useMemo(() => {
-    if (!user) return 'Disconnected';
-    if (user.role === 'admin') return 'Connected as ADMIN';
-    return 'Connected';
+    if (!user) return "Disconnected";
+    if (user.role === "admin") return "Connected as ADMIN";
+    return "Connected";
   }, [user]);
 
-  const topAssetId = useMemo(() => selectedAsset || stats?.topAssetsByVolume?.[0]?.assetId || null, [selectedAsset, stats]);
+  const topAssetId = useMemo(
+    () => selectedAsset || stats?.topAssetsByVolume?.[0]?.assetId || null,
+    [selectedAsset, stats],
+  );
 
   useEffect(() => {
     if (!selectedAsset && topAssetId) {
@@ -154,11 +205,15 @@ const GodDashboard = () => {
     };
 
     const tradeHandler = (payload: any) => {
+      if (seenTrades.current.has(payload.sequence)) return;
+      seenTrades.current.add(payload.sequence);
+      if (seenTrades.current.size > 10000)
+        seenTrades.current.delete(seenTrades.current.values().next().value!);
       const timestamp = new Date().toLocaleTimeString();
       // Find asset name from approved assets
       const asset = approvedAssets?.find((a: any) => a.id === payload.assetId);
-      const assetName = asset?.name || payload.assetId || 'Unknown';
-      const text = `[${timestamp}] ${payload.side ?? 'TRADE'} EXECUTED: ${payload.quantity} ${assetName} @ ${payload.price}`;
+      const assetName = asset?.name || payload.assetId || "Unknown";
+      const text = `[${timestamp}] ${payload.side ?? "TRADE"} EXECUTED: ${payload.quantity} ${assetName} @ ${payload.price}`;
       setTradeLog((prev) => [text, ...prev].slice(0, 30));
 
       // Update live chart data with forward-filling logic
@@ -173,10 +228,13 @@ const GodDashboard = () => {
         const lastPoint = prevData[prevData.length - 1];
 
         // Create a new data point by copying the previous one to carry forward the other assets' prices
-        const newPoint = { ...lastPoint, timestamp: new Date().toLocaleTimeString() };
+        const newPoint = {
+          ...lastPoint,
+          timestamp: new Date().toLocaleTimeString(),
+        };
 
         // Overwrite the specific asset's price with the new LTP
-        newPoint[payload.assetId] = payload.price;
+        newPoint[payload.assetId] = Number(payload.price);
 
         // Append and return with memory management
         const updatedData = [...prevData, newPoint];
@@ -187,26 +245,33 @@ const GodDashboard = () => {
       });
     };
 
-    socket.on('order_book_update', orderBookHandler);
-    socket.on('newTrade', tradeHandler);
+    socket.on("order_book_update", orderBookHandler);
+    socket.on("newTrade", tradeHandler);
 
     return () => {
-      socket.off('order_book_update', orderBookHandler);
-      socket.off('newTrade', tradeHandler);
+      socket.off("order_book_update", orderBookHandler);
+      socket.off("newTrade", tradeHandler);
     };
   }, [socket, selectedAsset, refetchOrderBook, approvedAssets, topAssets]);
 
   const totalCash = useMemo(() => {
     if (!Array.isArray(leaderboard)) return 0;
-    return leaderboard.reduce((sum: number, user: any) => sum + (Number(user.cash) || 0), 0);
+    return leaderboard.reduce(
+      (sum: number, user: any) => sum + (Number(user.cash) || 0),
+      0,
+    );
   }, [leaderboard]);
 
-  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+  const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
   const selectedAgentTrades = useMemo(() => {
     if (!selectedAgent || !Array.isArray(allTrades)) return [];
     return allTrades
-      .filter((trade) => trade.buyer_id === selectedAgent.userId || trade.seller_id === selectedAgent.userId)
+      .filter(
+        (trade) =>
+          trade.buyer_id === selectedAgent.userId ||
+          trade.seller_id === selectedAgent.userId,
+      )
       .slice(0, 10);
   }, [selectedAgent, allTrades]);
 
@@ -217,22 +282,27 @@ const GodDashboard = () => {
   }, [selectedAgent, refetchAllTrades]);
 
   const activeAgents = Array.isArray(leaderboard) ? leaderboard.length : 0;
-  const mostVolatile = stats?.topGainers?.[0]?.assetId || stats?.topLosers?.[0]?.assetId || 'N/A';
+  const mostVolatile =
+    stats?.topGainers?.[0]?.assetId || stats?.topLosers?.[0]?.assetId || "N/A";
 
   const handleInjectNews = async () => {
     if (!newsAssetId || !newsHeadline) {
-      setError('Please select an asset and enter a headline');
+      setError("Please select an asset and enter a headline");
       return;
     }
     try {
-      await injectNews({ assetId: newsAssetId, headline: newsHeadline, sentiment: newsSentiment });
-      setNewsHeadline('');
+      await injectNews({
+        assetId: newsAssetId,
+        headline: newsHeadline,
+        sentiment: newsSentiment,
+      });
+      setNewsHeadline("");
       setNewsSentiment(50);
       setError(null);
-      toast.success('News injected successfully!');
+      toast.success("News injected successfully!");
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to inject news');
-      toast.error('Failed to inject news');
+      setError(err.response?.data?.message || "Failed to inject news");
+      toast.error("Failed to inject news");
     }
   };
 
@@ -249,14 +319,24 @@ const GodDashboard = () => {
         <div className="rounded-3xl border border-border bg-secondary p-6 shadow-sm shadow-black/5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="hover:bg-accent">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate("/")}
+                className="hover:bg-accent"
+              >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Mission Control</p>
-                <h1 className="mt-2 text-4xl font-semibold">God Mode Dashboard</h1>
+                <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
+                  Mission Control
+                </p>
+                <h1 className="mt-2 text-4xl font-semibold">
+                  God Mode Dashboard
+                </h1>
                 <p className="mt-2 text-sm text-muted-foreground max-w-2xl">
-                  Monitor trader performance, order book health, and live execution events across the exchange.
+                  Monitor trader performance, order book health, and live
+                  execution events across the exchange.
                 </p>
               </div>
             </div>
@@ -266,8 +346,15 @@ const GodDashboard = () => {
                 {statusText}
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" className="border-border hover:bg-accent">Pause Simulation</Button>
-                <Button className="bg-destructive text-white hover:bg-destructive/90">Flush Order Book</Button>
+                <Button
+                  variant="outline"
+                  className="border-border hover:bg-accent"
+                >
+                  Pause Simulation
+                </Button>
+                <Button className="bg-destructive text-white hover:bg-destructive/90">
+                  Flush Order Book
+                </Button>
               </div>
             </div>
           </div>
@@ -279,7 +366,9 @@ const GodDashboard = () => {
               <CardTitle>24H Volume</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-semibold">{statsLoading ? '...' : formatMoney(stats?.volume24h || 0)}</p>
+              <p className="text-3xl font-semibold">
+                {statsLoading ? "..." : formatMoney(stats?.volume24h || 0)}
+              </p>
             </CardContent>
           </Card>
           <Card className="bg-secondary border-border">
@@ -287,7 +376,9 @@ const GodDashboard = () => {
               <CardTitle>Total System Cash</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-semibold">{leaderboardLoading ? '...' : formatMoney(totalCash)}</p>
+              <p className="text-3xl font-semibold">
+                {leaderboardLoading ? "..." : formatMoney(totalCash)}
+              </p>
             </CardContent>
           </Card>
           <Card className="bg-secondary border-border">
@@ -295,7 +386,9 @@ const GodDashboard = () => {
               <CardTitle>Active Agents</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-semibold">{leaderboardLoading ? '...' : activeAgents}</p>
+              <p className="text-3xl font-semibold">
+                {leaderboardLoading ? "..." : activeAgents}
+              </p>
             </CardContent>
           </Card>
           <Card className="bg-secondary border-border">
@@ -303,7 +396,9 @@ const GodDashboard = () => {
               <CardTitle>Most Volatile Asset</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-semibold">{statsLoading ? '...' : mostVolatile}</p>
+              <p className="text-3xl font-semibold">
+                {statsLoading ? "..." : mostVolatile}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -330,24 +425,46 @@ const GodDashboard = () => {
               </CardHeader>
               <CardContent className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={liveChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <XAxis dataKey="timestamp" tick={{ fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                    <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #334155' }} />
-                    {topAssets.map((asset: any, index: number) => (
-                      visibleAssets.has(asset.assetId) && (
-                        <Line
-                          key={asset.assetId}
-                          type="monotone"
-                          dataKey={asset.assetId}
-                          stroke={colors[index % colors.length]}
-                          strokeWidth={2}
-                          dot={false}
-                          name={asset.assetId.substring(0, 8)}
-                        />
-                      )
-                    ))}
+                  <LineChart
+                    data={liveChartData}
+                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                  >
+                    <XAxis
+                      dataKey="timestamp"
+                      tick={{ fill: "#94a3b8" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fill: "#94a3b8" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#334155"
+                      vertical={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "#0f172a",
+                        border: "1px solid #334155",
+                      }}
+                    />
+                    {topAssets.map(
+                      (asset: any, index: number) =>
+                        visibleAssets.has(asset.assetId) && (
+                          <Line
+                            key={asset.assetId}
+                            type="monotone"
+                            dataKey={asset.assetId}
+                            stroke={colors[index % colors.length]}
+                            strokeWidth={2}
+                            dot={false}
+                            name={asset.assetId.substring(0, 8)}
+                          />
+                        ),
+                    )}
                     <Legend
                       verticalAlign="bottom"
                       height={36}
@@ -371,7 +488,10 @@ const GodDashboard = () => {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Live Order Book</CardTitle>
-                  <Select value={selectedAsset || ''} onValueChange={setSelectedAsset}>
+                  <Select
+                    value={selectedAsset || ""}
+                    onValueChange={setSelectedAsset}
+                  >
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Select asset" />
                     </SelectTrigger>
@@ -387,7 +507,9 @@ const GodDashboard = () => {
               </CardHeader>
               <CardContent>
                 {!selectedAsset ? (
-                  <p className="text-muted-foreground text-center py-8">Select an asset to view its order book</p>
+                  <p className="text-muted-foreground text-center py-8">
+                    Select an asset to view its order book
+                  </p>
                 ) : (
                   <div className="flex flex-col gap-4 md:flex-row">
                     <div className="flex-1 rounded-3xl border border-emerald-500/30 p-3">
@@ -397,8 +519,11 @@ const GodDashboard = () => {
                       </div>
                       <div className="space-y-2 text-sm">
                         {(orderBook?.buys || []).map((row: any) => (
-                          <div key={row.id} className="flex justify-between rounded-2xl bg-emerald-500/5 px-3 py-2">
-                            <span>{Number(row.remaining_quantity).toFixed(2)} @</span>
+                          <div
+                            key={row.price}
+                            className="flex justify-between rounded-2xl bg-emerald-500/5 px-3 py-2"
+                          >
+                            <span>{Number(row.quantity).toFixed(4)} @</span>
                             <span>{formatMoney(Number(row.price))}</span>
                           </div>
                         ))}
@@ -411,8 +536,11 @@ const GodDashboard = () => {
                       </div>
                       <div className="space-y-2 text-sm">
                         {(orderBook?.sells || []).map((row: any) => (
-                          <div key={row.id} className="flex justify-between rounded-2xl bg-rose-500/5 px-3 py-2">
-                            <span>{Number(row.remaining_quantity).toFixed(2)} @</span>
+                          <div
+                            key={row.price}
+                            className="flex justify-between rounded-2xl bg-rose-500/5 px-3 py-2"
+                          >
+                            <span>{Number(row.quantity).toFixed(4)} @</span>
                             <span>{formatMoney(Number(row.price))}</span>
                           </div>
                         ))}
@@ -431,7 +559,9 @@ const GodDashboard = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Asset</label>
+                  <label className="text-sm font-medium mb-2 block">
+                    Asset
+                  </label>
                   <Select value={newsAssetId} onValueChange={setNewsAssetId}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select asset" />
@@ -446,7 +576,9 @@ const GodDashboard = () => {
                   </Select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Headline</label>
+                  <label className="text-sm font-medium mb-2 block">
+                    Headline
+                  </label>
                   <input
                     type="text"
                     value={newsHeadline}
@@ -456,7 +588,9 @@ const GodDashboard = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Sentiment: {newsSentiment}</label>
+                  <label className="text-sm font-medium mb-2 block">
+                    Sentiment: {newsSentiment}
+                  </label>
                   <input
                     type="range"
                     min="0"
@@ -483,11 +617,15 @@ const GodDashboard = () => {
               </CardHeader>
               <CardContent className="h-[400px] overflow-y-auto rounded-3xl bg-slate-950/90 p-4 font-mono text-sm text-slate-200">
                 {tradeLog.length === 0 ? (
-                  <p className="text-muted-foreground">Waiting for trade execution events...</p>
+                  <p className="text-muted-foreground">
+                    Waiting for trade execution events...
+                  </p>
                 ) : (
                   <div className="space-y-2">
                     {tradeLog.map((line, index) => (
-                      <div key={index} className="whitespace-pre-wrap">{line}</div>
+                      <div key={index} className="whitespace-pre-wrap">
+                        {line}
+                      </div>
                     ))}
                   </div>
                 )}
@@ -512,7 +650,9 @@ const GodDashboard = () => {
                   >
                     <div>
                       <div className="font-medium">{asset.assetId}</div>
-                      <div className="text-xs text-muted-foreground">Volume: {formatMoney(Number(asset.volume))}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Volume: {formatMoney(Number(asset.volume))}
+                      </div>
                     </div>
                     <div className="text-sm text-muted-foreground">Select</div>
                   </button>
@@ -538,19 +678,28 @@ const GodDashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {Array.isArray(leaderboard) && leaderboard.map((agent: any, index: number) => (
-                      <tr
-                        key={agent.userId}
-                        className="cursor-pointer border-t border-border hover:bg-primary/5"
-                        onClick={() => setSelectedAgent(agent)}
-                      >
-                        <td className="px-4 py-3">{index + 1}</td>
-                        <td className="px-4 py-3 font-medium text-foreground">{agent.name}</td>
-                        <td className="px-4 py-3">{formatMoney(Number(agent.cash) || 0)}</td>
-                        <td className="px-4 py-3">{formatMoney(Number(agent.portfolioValue) || 0)}</td>
-                        <td className="px-4 py-3">{formatMoney(Number(agent.netWorth) || 0)}</td>
-                      </tr>
-                    ))}
+                    {Array.isArray(leaderboard) &&
+                      leaderboard.map((agent: any, index: number) => (
+                        <tr
+                          key={agent.userId}
+                          className="cursor-pointer border-t border-border hover:bg-primary/5"
+                          onClick={() => setSelectedAgent(agent)}
+                        >
+                          <td className="px-4 py-3">{index + 1}</td>
+                          <td className="px-4 py-3 font-medium text-foreground">
+                            {agent.name}
+                          </td>
+                          <td className="px-4 py-3">
+                            {formatMoney(Number(agent.cash) || 0)}
+                          </td>
+                          <td className="px-4 py-3">
+                            {formatMoney(Number(agent.portfolioValue) || 0)}
+                          </td>
+                          <td className="px-4 py-3">
+                            {formatMoney(Number(agent.netWorth) || 0)}
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
@@ -563,10 +712,19 @@ const GodDashboard = () => {
             <div className="w-full max-w-4xl space-y-6 rounded-3xl bg-secondary border border-border p-6 shadow-2xl">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-semibold">Agent Profile: {selectedAgent.name}</h2>
-                  <p className="text-sm text-muted-foreground">Liquid cash, portfolio exposure, and recent trade activity.</p>
+                  <h2 className="text-2xl font-semibold">
+                    Agent Profile: {selectedAgent.name}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Liquid cash, portfolio exposure, and recent trade activity.
+                  </p>
                 </div>
-                <Button variant="outline" onClick={() => setSelectedAgent(null)}>Close</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setSelectedAgent(null)}
+                >
+                  Close
+                </Button>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -575,8 +733,13 @@ const GodDashboard = () => {
                     <CardTitle>Net Worth</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-3xl font-semibold">{formatMoney(Number(selectedAgent.netWorth) || 0)}</p>
-                    <p className="mt-2 text-sm text-muted-foreground">Liquid Cash: {formatMoney(Number(selectedAgent.cash) || 0)}</p>
+                    <p className="text-3xl font-semibold">
+                      {formatMoney(Number(selectedAgent.netWorth) || 0)}
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Liquid Cash:{" "}
+                      {formatMoney(Number(selectedAgent.cash) || 0)}
+                    </p>
                   </CardContent>
                 </Card>
                 <Card className="bg-background border-border">
@@ -584,7 +747,9 @@ const GodDashboard = () => {
                     <CardTitle>Portfolio Value</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-3xl font-semibold">{formatMoney(Number(selectedAgent.portfolioValue) || 0)}</p>
+                    <p className="text-3xl font-semibold">
+                      {formatMoney(Number(selectedAgent.portfolioValue) || 0)}
+                    </p>
                   </CardContent>
                 </Card>
               </div>
@@ -596,17 +761,30 @@ const GodDashboard = () => {
                   </CardHeader>
                   <CardContent>
                     {selectedAgentTrades.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No recent trades found yet.</p>
+                      <p className="text-sm text-muted-foreground">
+                        No recent trades found yet.
+                      </p>
                     ) : (
                       <div className="space-y-3">
                         {selectedAgentTrades.map((trade: any) => (
-                          <div key={trade.id} className="rounded-2xl bg-muted p-3">
+                          <div
+                            key={trade.id}
+                            className="rounded-2xl bg-muted p-3"
+                          >
                             <div className="flex items-center justify-between text-sm font-medium">
                               <span>{trade.asset_id}</span>
-                              <span>{trade.timestamp ? new Date(trade.timestamp).toLocaleString() : 'N/A'}</span>
+                              <span>
+                                {trade.timestamp
+                                  ? new Date(trade.timestamp).toLocaleString()
+                                  : "N/A"}
+                              </span>
                             </div>
                             <div className="mt-2 text-sm text-muted-foreground">
-                              {trade.buyer_id === selectedAgent.userId ? 'Bought' : 'Sold'} {trade.quantity} @ {formatMoney(Number(trade.price))}
+                              {trade.buyer_id === selectedAgent.userId
+                                ? "Bought"
+                                : "Sold"}{" "}
+                              {trade.quantity} @{" "}
+                              {formatMoney(Number(trade.price))}
                             </div>
                           </div>
                         ))}
@@ -619,10 +797,18 @@ const GodDashboard = () => {
                     <CardTitle>Holdings Insight</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-muted-foreground">This profile is derived from the leaderboard snapshot and recent trade history.</p>
+                    <p className="text-sm text-muted-foreground">
+                      This profile is derived from the leaderboard snapshot and
+                      recent trade history.
+                    </p>
                     <div className="mt-4 rounded-3xl bg-muted p-4 text-sm">
-                      <p>Cash: {formatMoney(Number(selectedAgent.cash) || 0)}</p>
-                      <p className="mt-2">Portfolio: {formatMoney(Number(selectedAgent.portfolioValue) || 0)}</p>
+                      <p>
+                        Cash: {formatMoney(Number(selectedAgent.cash) || 0)}
+                      </p>
+                      <p className="mt-2">
+                        Portfolio:{" "}
+                        {formatMoney(Number(selectedAgent.portfolioValue) || 0)}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>

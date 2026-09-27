@@ -1,0 +1,126 @@
+const { test, before, after } = require('node:test');
+const assert = require('node:assert/strict');
+const { randomUUID } = require('crypto');
+const { DataSource } = require('typeorm');
+const { Client } = require('pg');
+const { AtomicExchange1790101000000 } = require('../dist/exchange/schema');
+const { ExchangeClock1790460000000 } = require('../dist/exchange/clock-schema');
+const { Research1790461000000 } = require('../dist/research/schema');
+const { ResearchService } = require('../dist/research/research.service');
+let db, client, service;
+const schema = 'research_test_' + randomUUID().replaceAll('-', ''),
+  a = randomUUID(),
+  b = randomUUID();
+const manifest = {
+  version: 1,
+  durationMs: 2000,
+  stepMs: 1000,
+  seed: 42,
+  assets: [
+    {
+      id: 'a',
+      name: 'A',
+      sector: 'Sports',
+      subsector: 'Football',
+      price: '100.00',
+      marketWeight: 0,
+      sectorWeight: 0,
+      subsectorWeight: 0,
+      idiosyncraticWeight: 0,
+    },
+  ],
+  groups: [
+    {
+      id: 'g',
+      strategy: 'idle',
+      count: 1,
+      cash: '1000',
+      inventory: '10',
+      wakeMs: 1000,
+      delayMs: 0,
+      signalNoise: 0,
+      parameters: {},
+    },
+  ],
+  events: [],
+};
+before(async () => {
+  const url = process.env.TEST_DATABASE_URL;
+  if (!url) throw Error('TEST_DATABASE_URL required');
+  client = new Client({ connectionString: url });
+  await client.connect();
+  await client.query(`CREATE SCHEMA ${schema}`);
+  db = new DataSource({
+    type: 'postgres',
+    url,
+    extra: { options: `-c search_path=${schema}` },
+  });
+  await db.initialize();
+  const q = db.createQueryRunner();
+  await q.connect();
+  await q.startTransaction();
+  for (const Migration of [
+    AtomicExchange1790101000000,
+    ExchangeClock1790460000000,
+    Research1790461000000,
+  ])
+    await new Migration().up(q);
+  await q.commitTransaction();
+  await q.release();
+  for (const id of [a, b])
+    await db.query(
+      "INSERT INTO users(id,email,username,password_hash) VALUES($1,$2,$2,'disabled')",
+      [id, id],
+    );
+  service = new ResearchService(db.manager);
+});
+after(async () => {
+  if (db?.isInitialized) await db.destroy();
+  if (client) {
+    await client.query(`DROP SCHEMA ${schema} CASCADE`);
+    await client.end();
+  }
+});
+test('private immutable runs, retry-safe launch, cancellation and stale lease handling', async () => {
+  const e = await service.save(a, {
+    title: 'Question',
+    hypothesis: 'Test',
+    manifest,
+  });
+  assert.equal((await service.list(b)).length, 0);
+  await assert.rejects(
+    service.save(b, { title: 'Other', hypothesis: '', manifest }, e.id),
+  );
+  const [r, retry] = await Promise.all([
+    service.launch(a, e.id, 'same'),
+    service.launch(a, e.id, 'same'),
+  ]);
+  assert.equal(r.id, retry.id);
+  await service.save(
+    a,
+    { title: 'Changed', hypothesis: '', manifest: { ...manifest, seed: 99 } },
+    e.id,
+  );
+  assert.equal((await service.get(a, r.id)).manifest.seed, 42);
+  await assert.rejects(service.get(b, r.id));
+  await assert.rejects(service.cancel(b, r.id));
+  const claims = await Promise.all([service.claim(), service.claim()]);
+  assert.equal(claims.filter(Boolean).length, 1);
+  const claim = claims.find(Boolean);
+  await assert.rejects(service.heartbeat(r.id, 'bad', {}));
+  await service.cancel(a, r.id);
+  assert.equal(
+    (await service.heartbeat(r.id, claim.token, { tick: 100 }))
+      .cancel_requested,
+    true,
+  );
+  await service.finish(r.id, claim.token, { status: 'COMPLETED', result: {} });
+  assert.equal((await service.get(a, r.id)).status, 'CANCELLED');
+  const next = await service.launch(a, e.id, 'next');
+  await service.claim();
+  await db.query(
+    "UPDATE research_runs SET lease_until=now()-interval '1 second' WHERE id=$1",
+    [next.id],
+  );
+  assert.equal((await service.get(a, next.id)).status, 'FAILED');
+});

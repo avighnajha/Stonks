@@ -10,7 +10,7 @@ import { ConfigModule } from '@nestjs/config';
 @Module({
   imports: [
     WalletModule,
-    PassportModule.register({defaultStrategy: 'jwt'}),
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot({
       type: 'postgres',
@@ -19,7 +19,8 @@ import { ConfigModule } from '@nestjs/config';
       // Load any entity files.
       autoLoadEntities: true,
       // auto create tables depending on entities
-      synchronize: true,})
+      synchronize: false,
+    }),
   ],
   controllers: [AppController],
   providers: [AppService, JwtStrategy],

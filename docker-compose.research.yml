@@ -1,0 +1,40 @@
+# Optional overlay: docker compose -f docker-compose.yml -f docker-compose.research.yml up --build
+# Clone stonks-simulation beside this checkout. Start just one worker on small hosts.
+services:
+  trading_service:
+    environment:
+      RESEARCH_WORKER_KEY: ${RESEARCH_WORKER_KEY:?Set RESEARCH_WORKER_KEY}
+      RESEARCH_STRATEGIES: ${RESEARCH_STRATEGIES:-}
+  research_db:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_USER: research_provisioner
+      POSTGRES_PASSWORD: ${RESEARCH_DB_PASSWORD:?Set RESEARCH_DB_PASSWORD}
+      POSTGRES_DB: postgres
+    command: [postgres, -c, shared_buffers=64MB, -c, max_connections=30]
+    volumes: [research_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U research_provisioner -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  research_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.research
+      additional_contexts:
+        simulation: ../stonks-simulation
+    init: true
+    restart: unless-stopped
+    environment:
+      STONKS_EXCHANGE_DIR: /opt/exchange
+      RESEARCH_API_URL: http://trading_service:3004
+      RESEARCH_WORKER_KEY: ${RESEARCH_WORKER_KEY:?Set RESEARCH_WORKER_KEY}
+      RESEARCH_DATABASE_ADMIN_URL: postgresql://research_provisioner:${RESEARCH_DB_PASSWORD:?Set RESEARCH_DB_PASSWORD}@research_db:5432/postgres
+      RESEARCH_STRATEGIES: ${RESEARCH_STRATEGIES:-}
+      STONKS_STRATEGY_REGISTRY: ${STONKS_STRATEGY_REGISTRY:-}
+    depends_on:
+      research_db: { condition: service_healthy }
+      trading_service: { condition: service_healthy }
+volumes:
+  research_data:

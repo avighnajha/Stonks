@@ -45,3 +45,4 @@ Thumbs.db
 coverage
 /services/*/coverage
 /frontend/coverage
+.local-exchange-test/

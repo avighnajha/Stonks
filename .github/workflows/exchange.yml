@@ -1,0 +1,38 @@
+name: Exchange checks
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: exchange_test
+          POSTGRES_PASSWORD: exchange_test
+          POSTGRES_DB: exchange_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U exchange_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install and build services
+        shell: bash
+        run: |
+          for service in api_gateway user_service wallet_service portfolio_service marketplace_service trading_service; do
+            (cd "services/$service" && npm ci && npm run build && npm test -- --runInBand)
+          done
+      - name: PostgreSQL and full-stack regressions
+        working-directory: services/trading_service
+        env:
+          TEST_DATABASE_URL: postgresql://exchange_test:exchange_test@localhost:5432/exchange_test
+        run: npm run test:integration
+      - name: Frontend build and types
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+          npx tsc --noEmit -p tsconfig.app.json

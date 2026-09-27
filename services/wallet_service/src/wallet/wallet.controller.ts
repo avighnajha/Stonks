@@ -1,85 +1,19 @@
-import {Body, Controller, Get, NotFoundException, Post, Request, UseGuards, ValidationPipe} from '@nestjs/common';
+import { Controller, Get, Request, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { WalletService } from './wallet.service';
-import { Repository } from 'typeorm';
-import { Wallet } from './entities/wallet.entity';
-import { NotFoundError } from 'rxjs';
-import { InternalApiKeyGuard } from 'src/auth/api_key.guard';
-
-
-class CreateWalletDto{
-    userId: string;
-}
-class UpdateBalanceDto{
-    userId: string
-    amount: number
-}
-class SettleTradeDto {
-    buyerId: string;
-    sellerId: string;
-    amount: number;
-}
+import { InternalApiKeyGuard } from '../auth/api_key.guard';
 
 @Controller('wallet')
 export class WalletController {
-    constructor(
-        private readonly walletService: WalletService,
-    ){}
-
-    @Get('balance')
-    @UseGuards(AuthGuard('jwt'))
-    getBalance(@Request() req){
-        const userId = req.user.userId;
-        const wallet = this.walletService.getWallet(userId);
-        return wallet;
-    }
-
-    @Post()
-    @UseGuards(InternalApiKeyGuard)
-    createWallet(@Body() createWalletDto: CreateWalletDto) {
-        return this.walletService.createWallet(createWalletDto.userId);
-    }
-
-    @Post('debit')
-    // @UseGuards(AuthGuard('jwt'))
-    @UseGuards(InternalApiKeyGuard)
-    debit(@Body(ValidationPipe) updateBalanceDto:UpdateBalanceDto){
-        const {userId, amount} = updateBalanceDto;
-
-        return this.walletService.changeBalance(userId, amount, true)
-    }
-    @Post('credit')
-    // @UseGuards(AuthGuard('jwt'))
-    @UseGuards(InternalApiKeyGuard)
-    credit(@Body(ValidationPipe) updateBalanceDto: UpdateBalanceDto){
-        const {userId, amount} = updateBalanceDto;
-        return this.walletService.changeBalance(userId, amount, false)
-    }
-
-    @Post('freeze')
-    @UseGuards(InternalApiKeyGuard)
-    freeze(@Body(ValidationPipe) updateBalanceDto: UpdateBalanceDto){
-        const { userId, amount } = updateBalanceDto;
-        return this.walletService.freezeFunds(userId, amount);
-    }
-
-    @Post('unfreeze')
-    @UseGuards(InternalApiKeyGuard)
-    unfreeze(@Body(ValidationPipe) updateBalanceDto: UpdateBalanceDto){
-        const { userId, amount } = updateBalanceDto;
-        return this.walletService.unfreezeFunds(userId, amount);
-    }
-
-    @Post('settle')
-    @UseGuards(InternalApiKeyGuard)
-    settle(@Body(ValidationPipe) settleTradeDto: SettleTradeDto) {
-        const { buyerId, sellerId, amount } = settleTradeDto;
-        return this.walletService.settleTrade(buyerId, sellerId, amount);
-    }
-
-    @Get('admin/all')
-    @UseGuards(InternalApiKeyGuard)
-    async getAllWallets(){
-        return this.walletService.getAllWallets();
-    }
+  constructor(private readonly walletService: WalletService) {}
+  @Get('balance')
+  @UseGuards(AuthGuard('jwt'))
+  getBalance(@Request() req) {
+    return this.walletService.getWallet(req.user.userId);
+  }
+  @Get('admin/all')
+  @UseGuards(InternalApiKeyGuard)
+  getAllWallets() {
+    return this.walletService.getAllWallets();
+  }
 }

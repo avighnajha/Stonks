@@ -1,41 +1,65 @@
-import { useEffect, useState } from 'react';
-import axiosInstance from '@/api/axiosInstance';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from "react";
+import axiosInstance from "@/api/axiosInstance";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 
 export const Approvals = () => {
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<any | null>(null);
-  const [form, setForm] = useState({ initialPrice: '', totalSupply: '', creatorPercentage: '' });
+  const [form, setForm] = useState({
+    initialPrice: "",
+    totalSupply: "",
+    creatorPercentage: "",
+  });
   const { toast } = useToast();
 
   const fetchAssets = async () => {
     setLoading(true);
     try {
-      const res = await axiosInstance.get('/assets/all');
+      const res = await axiosInstance.get("/assets/admin/all");
       const data = res.data || [];
-      const pending = (Array.isArray(data) ? data : []).filter((a) => a.status === 'pending');
+      const pending = (Array.isArray(data) ? data : []).filter(
+        (a) => a.status === "pending",
+      );
       setAssets(pending);
     } catch (e) {
-      toast({ title: 'Failed to load assets', description: String(e), variant: 'destructive' });
+      toast({
+        title: "Failed to load assets",
+        description: String(e),
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchAssets(); }, []);
+  useEffect(() => {
+    fetchAssets();
+  }, []);
 
   const openApprove = (asset: any) => {
     setSelected(asset);
-    setForm({ initialPrice: asset.initial_price ?? '', totalSupply: asset.total_supply ?? '', creatorPercentage: asset.creator_split_percentage ?? '' });
+    setForm({
+      initialPrice: asset.initial_price ?? "",
+      totalSupply: asset.total_supply ?? "",
+      creatorPercentage: asset.creator_split_percentage ?? "",
+    });
   };
 
-  const close = () => { setSelected(null); setForm({ initialPrice: '', totalSupply: '', creatorPercentage: '' }); };
+  const close = () => {
+    setSelected(null);
+    setForm({ initialPrice: "", totalSupply: "", creatorPercentage: "" });
+  };
 
   const submitApprove = async () => {
     if (!selected) return;
@@ -45,11 +69,15 @@ export const Approvals = () => {
         totalSupply: Number(form.totalSupply),
         creatorPercentage: Number(form.creatorPercentage),
       });
-      toast({ title: 'Approved', description: `${selected.name} approved.` });
+      toast({ title: "Approved", description: `${selected.name} approved.` });
       close();
       fetchAssets();
     } catch (e: any) {
-      toast({ title: 'Approval failed', description: e?.response?.data?.message || e.message || String(e), variant: 'destructive' });
+      toast({
+        title: "Approval failed",
+        description: e?.response?.data?.message || e.message || String(e),
+        variant: "destructive",
+      });
     }
   };
 
@@ -57,24 +85,38 @@ export const Approvals = () => {
     if (!selected) return;
     try {
       await axiosInstance.patch(`/assets/${selected.id}/reject`);
-      toast({ title: 'Rejected', description: `${selected.name} has been rejected.` });
+      toast({
+        title: "Rejected",
+        description: `${selected.name} has been rejected.`,
+      });
       close();
       fetchAssets();
     } catch (e: any) {
-      toast({ title: 'Rejection failed', description: e?.response?.data?.message || e.message || String(e), variant: 'destructive' });
+      toast({
+        title: "Rejection failed",
+        description: e?.response?.data?.message || e.message || String(e),
+        variant: "destructive",
+      });
     }
   };
 
   const rejectAsset = async (asset: any) => {
     try {
       await axiosInstance.patch(`/assets/${asset.id}/reject`);
-      toast({ title: 'Rejected', description: `${asset.name} has been rejected.` });
+      toast({
+        title: "Rejected",
+        description: `${asset.name} has been rejected.`,
+      });
       if (selected?.id === asset.id) {
         close();
       }
       fetchAssets();
     } catch (e: any) {
-      toast({ title: 'Rejection failed', description: e?.response?.data?.message || e.message || String(e), variant: 'destructive' });
+      toast({
+        title: "Rejection failed",
+        description: e?.response?.data?.message || e.message || String(e),
+        variant: "destructive",
+      });
     }
   };
 
@@ -92,14 +134,30 @@ export const Approvals = () => {
           ) : (
             <div className="space-y-4">
               {assets.map((a) => (
-                <div key={a.id} className="flex items-center justify-between p-3 bg-background border-border rounded">
+                <div
+                  key={a.id}
+                  className="flex items-center justify-between p-3 bg-background border-border rounded"
+                >
                   <div>
                     <div className="font-semibold">{a.name}</div>
-                    <div className="text-sm text-muted-foreground">{a.description}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {a.description}
+                    </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Button onClick={() => openApprove(a)} className="bg-primary">Approve</Button>
-                    <Button variant="outline" onClick={() => rejectAsset(a)} className="text-destructive border-destructive hover:bg-destructive/10">Reject</Button>
+                    <Button
+                      onClick={() => openApprove(a)}
+                      className="bg-primary"
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => rejectAsset(a)}
+                      className="text-destructive border-destructive hover:bg-destructive/10"
+                    >
+                      Reject
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -108,7 +166,12 @@ export const Approvals = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={!!selected} onOpenChange={(v) => { if (!v) close(); }}>
+      <Dialog
+        open={!!selected}
+        onOpenChange={(v) => {
+          if (!v) close();
+        }}
+      >
         <DialogContent className="max-w-md bg-secondary border-border">
           <DialogHeader>
             <DialogTitle>Review {selected?.name}</DialogTitle>
@@ -116,20 +179,48 @@ export const Approvals = () => {
           <div className="space-y-4">
             <div>
               <Label>Initial Price ($)</Label>
-              <Input value={form.initialPrice} onChange={(e) => setForm({...form, initialPrice: e.target.value})} />
+              <Input
+                value={form.initialPrice}
+                onChange={(e) =>
+                  setForm({ ...form, initialPrice: e.target.value })
+                }
+              />
             </div>
             <div>
               <Label>Total Supply (Shares)</Label>
-              <Input value={form.totalSupply} onChange={(e) => setForm({...form, totalSupply: e.target.value})} />
+              <Input
+                value={form.totalSupply}
+                onChange={(e) =>
+                  setForm({ ...form, totalSupply: e.target.value })
+                }
+              />
             </div>
             <div>
               <Label>Creator Split (%)</Label>
-              <Input value={form.creatorPercentage} onChange={(e) => setForm({...form, creatorPercentage: e.target.value})} />
+              <Input
+                value={form.creatorPercentage}
+                onChange={(e) =>
+                  setForm({ ...form, creatorPercentage: e.target.value })
+                }
+              />
             </div>
             <div className="flex space-x-2">
-              <Button onClick={submitApprove} className="flex-1 bg-gradient-primary">Approve</Button>
-              <Button variant="outline" onClick={submitReject} className="flex-1 text-destructive border-destructive hover:bg-destructive/10">Reject</Button>
-              <Button variant="outline" onClick={close} className="flex-1">Cancel</Button>
+              <Button
+                onClick={submitApprove}
+                className="flex-1 bg-gradient-primary"
+              >
+                Approve
+              </Button>
+              <Button
+                variant="outline"
+                onClick={submitReject}
+                className="flex-1 text-destructive border-destructive hover:bg-destructive/10"
+              >
+                Reject
+              </Button>
+              <Button variant="outline" onClick={close} className="flex-1">
+                Cancel
+              </Button>
             </div>
           </div>
         </DialogContent>

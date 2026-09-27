@@ -17,7 +17,8 @@ import { ConfigModule } from '@nestjs/config';
       // Load any entity files.
       autoLoadEntities: true,
       // auto create tables depending on entities
-      synchronize: true,})
+      synchronize: false,
+    }),
   ],
   controllers: [AppController],
   providers: [AppService],

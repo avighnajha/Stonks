@@ -1,68 +1,67 @@
-import { OnModuleInit } from '@nestjs/common';
-import { WebSocketGateway, WebSocketServer, OnGatewayConnection } from '@nestjs/websockets';
+import { OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  WebSocketGateway,
+  WebSocketServer,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import Redis from 'ioredis';
-import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
-@WebSocketGateway({ namespace: '/market', cors: { origin: '*' } })
-export class TradingGateway implements OnModuleInit, OnGatewayConnection {
-  @WebSocketServer()
-  server!: Server;
-
-  private redis!: Redis;
+@WebSocketGateway({ namespace: '/market', cors: { origin: true } })
+export class TradingGateway
+  implements
+    OnModuleInit,
+    OnModuleDestroy,
+    OnGatewayConnection,
+    OnGatewayDisconnect
+{
+  @WebSocketServer() server: Server;
+  private redis: Redis;
   private readonly logger = new Logger(TradingGateway.name);
-
-  constructor(private readonly jwtService: JwtService) {}
-
+  private timers = new Map<string, ReturnType<typeof setTimeout>>();
+  constructor(private readonly jwt: JwtService) {}
   onModuleInit() {
-    const url = process.env.REDIS_URL || 'redis://localhost:6379';
-    this.redis = new Redis(url);
-
-    this.redis.on('error', (err) => this.logger.error('Redis subscriber error', err));
-
-    this.redis.subscribe('TRADE_EVENTS', 'ORDER_BOOK_EVENTS', 'GLOBAL_NEWS').then(() => {
-      this.logger.log('Subscribed to TRADE_EVENTS, ORDER_BOOK_EVENTS, and GLOBAL_NEWS');
-    }).catch((e) => this.logger.error('Failed to subscribe to Redis channels', e));
-
-    this.redis.on('message', (channel: string, message: string) => {
-      this.logger.log(`Received message on channel: ${channel}`);
+    this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+    this.redis.on('error', (e) => this.logger.debug(e.message));
+    void this.redis
+      .subscribe('EXCHANGE_EVENTS')
+      .catch((e) => this.logger.warn(e.message));
+    this.redis.on('message', (_channel, message) => {
       try {
-        const payload = JSON.parse(message);
-        if (channel === 'TRADE_EVENTS') {
-          this.server.emit('newTrade', payload);
-        } else if (channel === 'ORDER_BOOK_EVENTS') {
-          this.server.emit('order_book_update', payload);
-        } else if (channel === 'GLOBAL_NEWS') {
-          this.logger.log(`Broadcasting global_news event:`, payload);
-          this.server.emit('global_news', payload);
-          this.logger.log(`global_news event emitted to all clients`);
-        }
+        const event = JSON.parse(message);
+        this.server.emit('exchange_event', event);
       } catch (e) {
-        this.logger.warn(`Failed to parse message on channel ${channel}: ${e}`);
+        this.logger.warn('Invalid exchange event');
       }
     });
   }
-
   handleConnection(client: Socket) {
-    const token = client.handshake.auth?.token ||
-      client.handshake.headers.authorization?.toString().split(' ')[1];
-
-    if (!token) {
-      this.logger.warn('WebSocket connection rejected: missing token');
-      client.disconnect();
-      return;
-    }
-
     try {
-      const payload = this.jwtService.verify(token, {
-        secret: process.env.JWT_SECRET || 'default-secret',
-      }) as { role?: string };
-
-      this.logger.log(`WebSocket connection accepted for user with role: ${payload.role || 'none'}`);
-    } catch (err) {
-      this.logger.warn('WebSocket connection rejected: invalid token');
-      client.disconnect();
+      const token = client.handshake.auth?.token;
+      const payload = this.jwt.verify(token, {
+        secret: process.env.JWT_SECRET,
+      });
+      if (!payload.sub || !payload.exp) throw new Error('Invalid token claims');
+      client.data.userId = payload.sub;
+      const timer = setTimeout(
+        () => client.disconnect(true),
+        Math.max(0, payload.exp * 1000 - Date.now()),
+      );
+      timer.unref();
+      this.timers.set(client.id, timer);
+    } catch {
+      client.disconnect(true);
     }
+  }
+  handleDisconnect(client: Socket) {
+    const t = this.timers.get(client.id);
+    if (t) clearTimeout(t);
+    this.timers.delete(client.id);
+  }
+  onModuleDestroy() {
+    this.redis?.disconnect();
+    for (const t of this.timers.values()) clearTimeout(t);
   }
 }

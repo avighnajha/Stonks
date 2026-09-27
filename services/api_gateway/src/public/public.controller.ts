@@ -1,84 +1,43 @@
-import { Controller, Post, Get, Request, Response } from '@nestjs/common';
+import { Controller, Get, Post, Request, Response } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 
-// This controller now handles /auth, /assets and public /trade endpoints (quote/history)
-@Controller(['auth', 'assets', 'trade'])
+@Controller()
 export class PublicController {
-  constructor(private readonly httpService: HttpService) {}
-
-  // Handles POST /auth/register and POST /auth/login
-  @Post(['/register', '/login'])
-  async authRequest(@Request() req, @Response() res) {
-    const { method, originalUrl, headers, body } = req;
+  constructor(private readonly http: HttpService) {}
+  private async forward(base: string | undefined, req: any, res: any) {
     try {
       const response = await firstValueFrom(
-        this.httpService.request({
-          method,
-          url: `${process.env.USER_SERVICE_URL}${originalUrl}`,
-          headers: { 'Content-Type': headers['content-type'] || 'application/json' },
-          data: body,
+        this.http.request({
+          method: req.method,
+          url: `${base}${req.originalUrl}`,
+          data: req.body,
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 15000,
         }),
       );
       res.status(response.status).json(response.data);
-    } catch (error) {
-      res.status(error.response?.status || 500).json(error.response?.data || 'Internal server error');
+    } catch (e) {
+      res
+        .status(e.response?.status || 502)
+        .json(e.response?.data || { message: 'Service unavailable' });
     }
   }
-
-  // Handles GET /assets, GET /assets/approved and GET /assets/:id
-  @Get(['/', '/approved', '/:id'])
-  async assetRequest(@Request() req, @Response() res) {
-    const { method, originalUrl, headers, body } = req;
-    try {
-      const response = await firstValueFrom(
-        this.httpService.request({
-          method,
-          url: `${process.env.MARKETPLACE_SERVICE_URL}${originalUrl}`,
-          headers: { 'Content-Type': headers['content-type'] || 'application/json' },
-          data: body,
-        }),
-      );
-      res.status(response.status).json(response.data);
-    } catch (error) {
-      res.status(error.response?.status || 500).json(error.response?.data || 'Internal server error');
-    }
+  @Post(['auth/register', 'auth/login'])
+  auth(@Request() req, @Response() res) {
+    return this.forward(process.env.USER_SERVICE_URL, req, res);
   }
-
-  // Public trade endpoints: quote and history
-  @Get(['quote/:assetId'])
-  async quoteRequest(@Request() req, @Response() res) {
-    const { method, originalUrl, headers, body } = req;
-    try {
-      const response = await firstValueFrom(
-        this.httpService.request({
-          method,
-          url: `${process.env.TRADING_SERVICE_URL}${originalUrl}`,
-          headers: { 'Content-Type': headers['content-type'] || 'application/json' },
-          data: body,
-        }),
-      );
-      res.status(response.status).json(response.data);
-    } catch (error) {
-      res.status(error.response?.status || 500).json(error.response?.data || 'Internal server error');
-    }
+  @Get(['assets/approved', 'assets/:id'])
+  assets(@Request() req, @Response() res) {
+    // /assets/all is admin-only and must retain the bearer token.
+    if (req.params.id === 'all')
+      return res
+        .status(404)
+        .json({ message: 'Use the authenticated admin assets endpoint' });
+    return this.forward(process.env.MARKETPLACE_SERVICE_URL, req, res);
   }
-
-  @Get(['history/:assetId'])
-  async historyRequest(@Request() req, @Response() res) {
-    const { method, originalUrl, headers, body } = req;
-    try {
-      const response = await firstValueFrom(
-        this.httpService.request({
-          method,
-          url: `${process.env.TRADING_SERVICE_URL}${originalUrl}`,
-          headers: { 'Content-Type': headers['content-type'] || 'application/json' },
-          data: body,
-        }),
-      );
-      res.status(response.status).json(response.data);
-    } catch (error) {
-      res.status(error.response?.status || 500).json(error.response?.data || 'Internal server error');
-    }
+  @Get(['trade/markets', 'trade/quote/:assetId', 'trade/history/:assetId'])
+  data(@Request() req, @Response() res) {
+    return this.forward(process.env.TRADING_SERVICE_URL, req, res);
   }
 }
