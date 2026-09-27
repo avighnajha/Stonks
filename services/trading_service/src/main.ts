@@ -8,7 +8,7 @@ async function bootstrap() {
   if (!process.env.JWT_SECRET || !process.env.INTERNAL_API_KEY)
     throw new Error('JWT_SECRET and INTERNAL_API_KEY must be configured');
   const app = await NestFactory.create(AppModule);
-  app.use(json({limit:'9mb'}));
+  app.use(json({ limit: '9mb' }));
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
   );

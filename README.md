@@ -15,6 +15,7 @@ Use Node 22. Copy `.env.example` to `.env`, configure the secrets, then run `doc
 - [Participant API and recovery protocol](docs/PARTICIPANT_API.md)
 - [Accounting, operations and tests](docs/EXCHANGE_OPERATIONS.md)
 - [Deferred bot/simulation/research decisions](docs/RESEARCH_BACKLOG.md)
+- [Research infrastructure and Python worker setup](docs/RESEARCH_OPERATIONS.md)
 
 Build the six services, set `TEST_DATABASE_URL` to a disposable PostgreSQL instance, and run `npm run test:integration` in `services/trading_service`. Tests create isolated schemas and cover concurrency, conservation, rollback, idempotency and the full HTTP flow. CI also checks service builds, unit tests and frontend types.
 

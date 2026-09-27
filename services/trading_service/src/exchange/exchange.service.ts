@@ -22,8 +22,12 @@ export interface OrderInput {
 
 @Injectable()
 export class ExchangeService {
-  constructor(private readonly manager: EntityManager,
-    @Optional() @Inject(EXCHANGE_RUNTIME) private readonly runtime: ExchangeRuntime = liveRuntime) {}
+  constructor(
+    private readonly manager: EntityManager,
+    @Optional()
+    @Inject(EXCHANGE_RUNTIME)
+    private readonly runtime: ExchangeRuntime = liveRuntime,
+  ) {}
 
   private async command(
     userId: string,
@@ -38,7 +42,9 @@ export class ExchangeService {
       await m.query("SET LOCAL statement_timeout = '10s'");
       // Global sequencing prevents cross-asset spending races and empty-book crossed arrivals.
       await m.query('SELECT pg_advisory_xact_lock($1)', [EXCHANGE_LOCK]);
-      await m.query("SELECT set_config('stonks.logical_time',$1,true)", [this.runtime.now().toISOString()]);
+      await m.query("SELECT set_config('stonks.logical_time',$1,true)", [
+        this.runtime.now().toISOString(),
+      ]);
       const [old] = await m.query(
         'SELECT request,response FROM exchange_commands WHERE user_id=$1 AND key=$2',
         [userId, key],

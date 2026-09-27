@@ -26,7 +26,11 @@ import { ResearchModule } from './research/research.module';
       autoLoadEntities: true,
       // auto create tables depending on entities
       synchronize: false,
-      migrations: [AtomicExchange1790101000000, ExchangeClock1790460000000, Research1790461000000],
+      migrations: [
+        AtomicExchange1790101000000,
+        ExchangeClock1790460000000,
+        Research1790461000000,
+      ],
       migrationsRun: true,
     }),
   ],

@@ -9,6 +9,7 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 5173,
     proxy: {
+      "/research": { target: "http://localhost:8080", changeOrigin: true },
       "/admin": { target: "http://localhost:8080", changeOrigin: true },
       "/auth": {
         target: "http://localhost:8080",

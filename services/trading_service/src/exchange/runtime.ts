@@ -5,4 +5,7 @@ export interface ExchangeRuntime {
   now(): Date;
   id(): string;
 }
-export const liveRuntime: ExchangeRuntime = { now: () => new Date(), id: randomUUID };
+export const liveRuntime: ExchangeRuntime = {
+  now: () => new Date(),
+  id: randomUUID,
+};

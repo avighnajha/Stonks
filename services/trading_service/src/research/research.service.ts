@@ -1,27 +1,206 @@
-import { Injectable,BadRequestException,NotFoundException,ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { validateManifest } from './manifest';
 @Injectable()
 export class ResearchService {
-  constructor(private readonly db:EntityManager){}
-  async catalogue(){return this.db.query(`SELECT a.id,a.name,a.description,a.initial_price AS price,COALESCE(t.sector,'Unclassified') AS sector,COALESCE(t.subsector,'Unclassified') AS subsector,COALESCE(t.version,1) AS version FROM assets a LEFT JOIN research_templates t ON t.id=a.id WHERE a.status='approved' ORDER BY a.name LIMIT 500`);}
-  async template(id:string,b:any){if(!b||typeof b.sector!=='string'||typeof b.subsector!=='string'||!b.sector.trim()||!b.subsector.trim()||b.sector.length>80||b.subsector.length>80)throw new BadRequestException('Sector and subsector required');const [a]=await this.db.query("SELECT id FROM assets WHERE id=$1 AND status='approved'",[id]);if(!a)throw new NotFoundException();return (await this.db.query(`INSERT INTO research_templates(id,sector,subsector) VALUES($1,$2,$3) ON CONFLICT(id) DO UPDATE SET sector=$2,subsector=$3,version=research_templates.version+1,updated_at=now() RETURNING *`,[id,b.sector,b.subsector]))[0];}
-  async save(owner:string,b:any,id?:string){if(!b||typeof b.title!=='string'||!b.title.trim()||b.title.length>120||typeof b.hypothesis!=='string'||b.hypothesis.length>2000)throw new BadRequestException('Title and hypothesis required');const m=validateManifest(b.manifest);if(id){const [rows]=await this.db.query('UPDATE research_experiments SET title=$3,hypothesis=$4,manifest=$5,updated_at=now() WHERE id=$1 AND owner_id=$2 RETURNING *',[id,owner,b.title,b.hypothesis,JSON.stringify(m)]);if(!rows.length)throw new NotFoundException();return rows[0];}return (await this.db.query('INSERT INTO research_experiments(owner_id,title,hypothesis,manifest) VALUES($1,$2,$3,$4) RETURNING *',[owner,b.title,b.hypothesis,JSON.stringify(m)]))[0];}
-  async list(owner:string){return this.db.query('SELECT * FROM research_experiments WHERE owner_id=$1 ORDER BY created_at DESC LIMIT 100',[owner]);}
-  async runs(owner:string){await this.expire();return this.db.query('SELECT id,experiment_id,manifest,status,cancel_requested,progress,error,created_at,finished_at FROM research_runs WHERE owner_id=$1 ORDER BY created_at DESC LIMIT 200',[owner]);}
-  async get(owner:string,id:string){await this.expire();const [r]=await this.db.query('SELECT id,experiment_id,manifest,status,cancel_requested,progress,result,error,created_at,finished_at FROM research_runs WHERE owner_id=$1 AND id=$2',[owner,id]);if(!r)throw new NotFoundException();return r;}
-  async launch(owner:string,id:string,key:string,seed?:number){if(!key||!/^[\w.:-]{1,128}$/.test(key))throw new BadRequestException('Idempotency-Key required');return this.db.transaction(async m=>{
-    await m.query('SELECT pg_advisory_xact_lock(73190423)');
-    const [old]=await m.query('SELECT id,experiment_id,manifest FROM research_runs WHERE owner_id=$1 AND request_key=$2',[owner,key]);if(old){if(old.experiment_id!==id||(seed!==undefined&&old.manifest.seed!==seed))throw new ConflictException('Key belongs to another launch');return {id:old.id};}
-    const [e]=await m.query('SELECT * FROM research_experiments WHERE owner_id=$1 AND id=$2',[owner,id]);if(!e)throw new NotFoundException();const manifest=validateManifest({...e.manifest,...(seed===undefined?{}:{seed})});
-    for(const a of manifest.assets)if(a.templateId){const [t]=await m.query(`SELECT a.name,COALESCE(t.sector,'Unclassified') AS sector,COALESCE(t.subsector,'Unclassified') AS subsector,COALESCE(t.version,1) AS version FROM assets a LEFT JOIN research_templates t ON t.id=a.id WHERE a.id=$1 AND a.status='approved'`,[a.templateId]);if(!t||t.version!==a.templateVersion)throw new ConflictException('Catalogue template changed; refresh before running');if(t.name!==a.name||t.sector!==a.sector||t.subsector!==a.subsector)throw new BadRequestException('Catalogue identity does not match snapshot');}
-    const [{n}]=await m.query("SELECT count(*)::int AS n FROM research_runs WHERE owner_id=$1 AND status IN ('QUEUED','RUNNING')",[owner]);if(n>=10)throw new BadRequestException('At most 10 active runs per user');
-    return (await m.query('INSERT INTO research_runs(experiment_id,owner_id,request_key,manifest) VALUES($1,$2,$3,$4) RETURNING id',[id,owner,key,JSON.stringify(manifest)]))[0];
-  });}
-  async cancel(owner:string,id:string){await this.get(owner,id);await this.db.query("UPDATE research_runs SET cancel_requested=true,status=CASE WHEN status='QUEUED' THEN 'CANCELLED' ELSE status END,finished_at=CASE WHEN status='QUEUED' THEN now() ELSE finished_at END WHERE owner_id=$1 AND id=$2 AND status IN ('QUEUED','RUNNING')",[owner,id]);return this.get(owner,id);}
-  async expire(){await this.db.query("UPDATE research_runs SET status=CASE WHEN cancel_requested THEN 'CANCELLED' ELSE 'FAILED' END,error='Worker lease expired; clone/re-run from the manifest',finished_at=now(),lease_token=NULL WHERE status='RUNNING' AND lease_until<now()");}
-  async claim(){await this.expire();return this.db.transaction(async m=>{const [r]=await m.query("SELECT id,manifest FROM research_runs WHERE status='QUEUED' ORDER BY created_at,id FOR UPDATE SKIP LOCKED LIMIT 1");if(!r)return null;const token=randomUUID();await m.query("UPDATE research_runs SET status='RUNNING',lease_token=$2,lease_until=now()+interval '90 seconds' WHERE id=$1",[r.id,token]);return {...r,token};});}
-  async heartbeat(id:string,token:string,progress:any){if(!progress||JSON.stringify(progress).length>200000)throw new BadRequestException('Progress too large');const [rows]=await this.db.query("UPDATE research_runs SET lease_until=now()+interval '90 seconds',progress=$3 WHERE id=$1 AND lease_token=$2 AND status='RUNNING' AND lease_until>=now() RETURNING cancel_requested",[id,token,JSON.stringify(progress)]);if(!rows.length)throw new ConflictException('Lease lost');return rows[0];}
-  async finish(id:string,token:string,b:any){if(!b||!['COMPLETED','FAILED','CANCELLED'].includes(b.status)||JSON.stringify(b).length>8000000)throw new BadRequestException('Invalid result');const [rows]=await this.db.query("UPDATE research_runs SET status=CASE WHEN cancel_requested THEN 'CANCELLED' ELSE $3 END,result=$4,error=$5,finished_at=now(),lease_token=NULL WHERE id=$1 AND lease_token=$2 AND status='RUNNING' AND lease_until>=now() RETURNING id",[id,token,b.status,JSON.stringify(b.result??null),String(b.error??'').slice(0,1000)]);if(!rows.length)throw new ConflictException('Lease lost');return rows[0];}
+  constructor(private readonly db: EntityManager) {}
+  async catalogue() {
+    return this.db.query(
+      `SELECT a.id,a.name,a.description,a.initial_price AS price,COALESCE(t.sector,'Unclassified') AS sector,COALESCE(t.subsector,'Unclassified') AS subsector,COALESCE(t.version,1) AS version FROM assets a LEFT JOIN research_templates t ON t.id=a.id WHERE a.status='approved' ORDER BY a.name LIMIT 500`,
+    );
+  }
+  async template(id: string, b: any) {
+    if (
+      !b ||
+      typeof b.sector !== 'string' ||
+      typeof b.subsector !== 'string' ||
+      !b.sector.trim() ||
+      !b.subsector.trim() ||
+      b.sector.length > 80 ||
+      b.subsector.length > 80
+    )
+      throw new BadRequestException('Sector and subsector required');
+    const [a] = await this.db.query(
+      "SELECT id FROM assets WHERE id=$1 AND status='approved'",
+      [id],
+    );
+    if (!a) throw new NotFoundException();
+    return (
+      await this.db.query(
+        `INSERT INTO research_templates(id,sector,subsector) VALUES($1,$2,$3) ON CONFLICT(id) DO UPDATE SET sector=$2,subsector=$3,version=research_templates.version+1,updated_at=now() RETURNING *`,
+        [id, b.sector, b.subsector],
+      )
+    )[0];
+  }
+  async save(owner: string, b: any, id?: string) {
+    if (
+      !b ||
+      typeof b.title !== 'string' ||
+      !b.title.trim() ||
+      b.title.length > 120 ||
+      typeof b.hypothesis !== 'string' ||
+      b.hypothesis.length > 2000
+    )
+      throw new BadRequestException('Title and hypothesis required');
+    const m = validateManifest(b.manifest);
+    if (id) {
+      const [rows] = await this.db.query(
+        'UPDATE research_experiments SET title=$3,hypothesis=$4,manifest=$5,updated_at=now() WHERE id=$1 AND owner_id=$2 RETURNING *',
+        [id, owner, b.title, b.hypothesis, JSON.stringify(m)],
+      );
+      if (!rows.length) throw new NotFoundException();
+      return rows[0];
+    }
+    return (
+      await this.db.query(
+        'INSERT INTO research_experiments(owner_id,title,hypothesis,manifest) VALUES($1,$2,$3,$4) RETURNING *',
+        [owner, b.title, b.hypothesis, JSON.stringify(m)],
+      )
+    )[0];
+  }
+  async list(owner: string) {
+    return this.db.query(
+      'SELECT * FROM research_experiments WHERE owner_id=$1 ORDER BY created_at DESC LIMIT 100',
+      [owner],
+    );
+  }
+  async runs(owner: string) {
+    await this.expire();
+    return this.db.query(
+      'SELECT id,experiment_id,manifest,status,cancel_requested,progress,error,created_at,finished_at FROM research_runs WHERE owner_id=$1 ORDER BY created_at DESC LIMIT 200',
+      [owner],
+    );
+  }
+  async get(owner: string, id: string) {
+    await this.expire();
+    const [r] = await this.db.query(
+      'SELECT id,experiment_id,manifest,status,cancel_requested,progress,result,error,created_at,finished_at FROM research_runs WHERE owner_id=$1 AND id=$2',
+      [owner, id],
+    );
+    if (!r) throw new NotFoundException();
+    return r;
+  }
+  async launch(owner: string, id: string, key: string, seed?: number) {
+    if (!key || !/^[\w.:-]{1,128}$/.test(key))
+      throw new BadRequestException('Idempotency-Key required');
+    return this.db.transaction(async (m) => {
+      await m.query('SELECT pg_advisory_xact_lock(73190423)');
+      const [old] = await m.query(
+        'SELECT id,experiment_id,manifest FROM research_runs WHERE owner_id=$1 AND request_key=$2',
+        [owner, key],
+      );
+      if (old) {
+        if (
+          old.experiment_id !== id ||
+          (seed !== undefined && old.manifest.seed !== seed)
+        )
+          throw new ConflictException('Key belongs to another launch');
+        return { id: old.id };
+      }
+      const [e] = await m.query(
+        'SELECT * FROM research_experiments WHERE owner_id=$1 AND id=$2',
+        [owner, id],
+      );
+      if (!e) throw new NotFoundException();
+      const manifest = validateManifest({
+        ...e.manifest,
+        ...(seed === undefined ? {} : { seed }),
+      });
+      for (const a of manifest.assets)
+        if (a.templateId) {
+          const [t] = await m.query(
+            `SELECT a.name,COALESCE(t.sector,'Unclassified') AS sector,COALESCE(t.subsector,'Unclassified') AS subsector,COALESCE(t.version,1) AS version FROM assets a LEFT JOIN research_templates t ON t.id=a.id WHERE a.id=$1 AND a.status='approved'`,
+            [a.templateId],
+          );
+          if (!t || t.version !== a.templateVersion)
+            throw new ConflictException(
+              'Catalogue template changed; refresh before running',
+            );
+          if (
+            t.name !== a.name ||
+            t.sector !== a.sector ||
+            t.subsector !== a.subsector
+          )
+            throw new BadRequestException(
+              'Catalogue identity does not match snapshot',
+            );
+        }
+      const [{ n }] = await m.query(
+        "SELECT count(*)::int AS n FROM research_runs WHERE owner_id=$1 AND status IN ('QUEUED','RUNNING')",
+        [owner],
+      );
+      if (n >= 10)
+        throw new BadRequestException('At most 10 active runs per user');
+      return (
+        await m.query(
+          'INSERT INTO research_runs(experiment_id,owner_id,request_key,manifest) VALUES($1,$2,$3,$4) RETURNING id',
+          [id, owner, key, JSON.stringify(manifest)],
+        )
+      )[0];
+    });
+  }
+  async cancel(owner: string, id: string) {
+    await this.get(owner, id);
+    await this.db.query(
+      "UPDATE research_runs SET cancel_requested=true,status=CASE WHEN status='QUEUED' THEN 'CANCELLED' ELSE status END,finished_at=CASE WHEN status='QUEUED' THEN now() ELSE finished_at END WHERE owner_id=$1 AND id=$2 AND status IN ('QUEUED','RUNNING')",
+      [owner, id],
+    );
+    return this.get(owner, id);
+  }
+  async expire() {
+    await this.db.query(
+      "UPDATE research_runs SET status=CASE WHEN cancel_requested THEN 'CANCELLED' ELSE 'FAILED' END,error='Worker lease expired; clone/re-run from the manifest',finished_at=now(),lease_token=NULL WHERE status='RUNNING' AND lease_until<now()",
+    );
+  }
+  async claim() {
+    await this.expire();
+    return this.db.transaction(async (m) => {
+      const [r] = await m.query(
+        "SELECT id,manifest FROM research_runs WHERE status='QUEUED' ORDER BY created_at,id FOR UPDATE SKIP LOCKED LIMIT 1",
+      );
+      if (!r) return null;
+      const token = randomUUID();
+      await m.query(
+        "UPDATE research_runs SET status='RUNNING',lease_token=$2,lease_until=now()+interval '90 seconds' WHERE id=$1",
+        [r.id, token],
+      );
+      return { ...r, token };
+    });
+  }
+  async heartbeat(id: string, token: string, progress: any) {
+    if (!progress || JSON.stringify(progress).length > 200000)
+      throw new BadRequestException('Progress too large');
+    const [rows] = await this.db.query(
+      "UPDATE research_runs SET lease_until=now()+interval '90 seconds',progress=$3 WHERE id=$1 AND lease_token=$2 AND status='RUNNING' AND lease_until>=now() RETURNING cancel_requested",
+      [id, token, JSON.stringify(progress)],
+    );
+    if (!rows.length) throw new ConflictException('Lease lost');
+    return rows[0];
+  }
+  async finish(id: string, token: string, b: any) {
+    if (
+      !b ||
+      !['COMPLETED', 'FAILED', 'CANCELLED'].includes(b.status) ||
+      JSON.stringify(b).length > 8000000
+    )
+      throw new BadRequestException('Invalid result');
+    const [rows] = await this.db.query(
+      "UPDATE research_runs SET status=CASE WHEN cancel_requested THEN 'CANCELLED' ELSE $3 END,result=$4,error=$5,finished_at=now(),lease_token=NULL WHERE id=$1 AND lease_token=$2 AND status='RUNNING' AND lease_until>=now() RETURNING id",
+      [
+        id,
+        token,
+        b.status,
+        JSON.stringify(b.result ?? null),
+        String(b.error ?? '').slice(0, 1000),
+      ],
+    );
+    if (!rows.length) throw new ConflictException('Lease lost');
+    return rows[0];
+  }
 }

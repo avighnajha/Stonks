@@ -1,10 +1,18 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { User, TrendingUp, PieChart, Search, LogIn, ShieldCheck } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ProfileModal } from './ProfileModal';
-import { LoginModal } from './LoginModal';
-import { useAuth } from '@/hooks/useAuth';
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  User,
+  TrendingUp,
+  PieChart,
+  Search,
+  LogIn,
+  ShieldCheck,
+  FlaskConical,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ProfileModal } from "./ProfileModal";
+import { LoginModal } from "./LoginModal";
+import { useAuth } from "@/hooks/useAuth";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,19 +22,20 @@ interface LayoutProps {
 
 export const Layout = ({ children, activeTab, onTabChange }: LayoutProps) => {
   const { isAuthenticated, user, logout } = useAuth();
-  
+
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
 
   const tabs = [
-    { id: 'explore', label: 'Explore', icon: Search },
-    { id: 'portfolio', label: 'Portfolio', icon: PieChart },
-    { id: 'trending', label: 'Trending', icon: TrendingUp },
+    { id: "research", label: "Research", icon: FlaskConical },
+    { id: "explore", label: "Market", icon: Search },
+    { id: "portfolio", label: "Portfolio", icon: PieChart },
+    { id: "trending", label: "Trending", icon: TrendingUp },
   ];
-  
+
   // If user is admin, add Approvals tab
-  if (user?.role && user.role.toLowerCase() === 'admin') {
-    tabs.push({ id: 'approvals', label: 'Approvals', icon: User });
+  if (user?.role && user.role.toLowerCase() === "admin") {
+    tabs.push({ id: "approvals", label: "Approvals", icon: User });
   }
 
   return (
@@ -39,23 +48,27 @@ export const Layout = ({ children, activeTab, onTabChange }: LayoutProps) => {
               <TrendingUp className="h-5 w-5 text-primary-foreground" />
             </div>
             <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              InvestPeople
+              Stonks
             </h1>
           </div>
           {isAuthenticated ? (
             <div className="flex items-center gap-2">
-              {user?.role && user.role.toLowerCase() === 'admin' ? (
+              {user?.role && user.role.toLowerCase() === "admin" ? (
                 <Link to="/admin">
-                  <Button variant="secondary" size="sm" className="border-border bg-secondary hover:bg-accent">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="border-border bg-secondary hover:bg-accent"
+                  >
                     <ShieldCheck className="h-4 w-4 mr-2" />
                     Admin
                   </Button>
                 </Link>
               ) : null}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={()=>setIsProfileOpen(true)}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsProfileOpen(true)}
                 className="bg-secondary border-border hover:bg-accent"
               >
                 <User className="h-4 w-4 mr-2" />
@@ -63,9 +76,9 @@ export const Layout = ({ children, activeTab, onTabChange }: LayoutProps) => {
               </Button>
             </div>
           ) : (
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setIsLoginOpen(true)}
               className="bg-secondary border-border hover:bg-accent"
             >
@@ -77,9 +90,7 @@ export const Layout = ({ children, activeTab, onTabChange }: LayoutProps) => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 pb-20">
-        {children}
-      </main>
+      <main className="flex-1 pb-20">{children}</main>
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-secondary border-t border-border">
@@ -94,8 +105,8 @@ export const Layout = ({ children, activeTab, onTabChange }: LayoutProps) => {
                   onClick={() => onTabChange(tab.id)}
                   className={`flex flex-col items-center space-y-1 px-3 py-2 rounded-lg transition-all duration-200 ${
                     isActive
-                      ? 'bg-primary text-primary-foreground shadow-glow'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                      ? "bg-primary text-primary-foreground shadow-glow"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
                   }`}
                 >
                   <Icon className="h-5 w-5" />
@@ -107,8 +118,12 @@ export const Layout = ({ children, activeTab, onTabChange }: LayoutProps) => {
         </div>
       </nav>
 
-      <ProfileModal open={isProfileOpen} onOpenChange={setIsProfileOpen} onRequestLoginOpen={() => setIsLoginOpen(true)} />
-      <LoginModal open={isLoginOpen} onOpenChange={setIsLoginOpen}/>
+      <ProfileModal
+        open={isProfileOpen}
+        onOpenChange={setIsProfileOpen}
+        onRequestLoginOpen={() => setIsLoginOpen(true)}
+      />
+      <LoginModal open={isLoginOpen} onOpenChange={setIsLoginOpen} />
     </div>
   );
 };
