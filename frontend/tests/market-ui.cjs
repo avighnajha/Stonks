@@ -122,7 +122,15 @@ const fs = require("node:fs");
           ],
         };
       else if (p === "/portfolio") data = [];
-      else if (p === "/assets/admin/all") data = [];
+      else if (p === "/assets/admin/all" || p === "/assets/approved") data = [];
+      else if (p === "/admin/market-stats")
+        data = {
+          volume24h: 0,
+          topAssetsByVolume: [],
+          topGainers: [],
+          topLosers: [],
+        };
+      else if (p.startsWith("/admin/")) data = [];
       else if (p === "/trade/feed-snapshot") data = { cursor: "0", events: [] };
       else if (p === "/trade/events")
         data = { events: [], nextCursor: "0", hasMore: false };
@@ -144,13 +152,14 @@ const fs = require("node:fs");
         });
       }
     };
-    const noOverflow = async () =>
-      assert.equal(
-        await page.evaluate(
-          () => document.documentElement.scrollWidth > innerWidth + 1,
-        ),
-        false,
+    const noOverflow = async () => {
+      // Charts resize via ResizeObserver after the viewport changes.
+      await page.waitForFunction(
+        () => document.documentElement.scrollWidth <= innerWidth + 1,
+        null,
+        { timeout: 5000 },
       );
+    };
     await page.goto(
       `${process.env.UI_BASE_URL || "http://127.0.0.1:5175"}/?tab=explore`,
     );
@@ -274,6 +283,22 @@ const fs = require("node:fs");
     await shot("silver-research-mobile");
     await page.setViewportSize({ width: 1440, height: 1000 });
     await shot("silver-research-desktop");
+    await page.getByRole("link", { name: "Operations", exact: true }).click();
+    await page
+      .getByRole("heading", { name: "Operations", exact: true })
+      .waitFor();
+    await noOverflow();
+    await shot("silver-operations-desktop");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await shot("silver-operations-mobile");
+    await noOverflow();
+    await page
+      .getByRole("button", { name: "Asset approvals", exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: "Pending Listings", exact: true })
+      .waitFor();
+    await noOverflow();
     assert.deepEqual(errors, []);
     console.log(
       "Market sorting/search, real chart mapping, limit-order payload/idempotency, cancellation, portfolio navigation, stale-data notice and mobile layouts passed.",

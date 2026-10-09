@@ -6,6 +6,7 @@
   :root,
   .dark {
     color-scheme: dark;
+    accent-color: hsl(var(--primary));
     --background: 240 6% 7%;
     --foreground: 240 5% 94%;
     --card: 240 6% 10%;

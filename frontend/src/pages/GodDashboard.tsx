@@ -174,7 +174,7 @@ const GodDashboard = () => {
 
   const statusText = useMemo(() => {
     if (!user) return "Disconnected";
-    if (user.role === "admin") return "Connected as ADMIN";
+    if (user.role === "admin") return "Admin session";
     return "Connected";
   }, [user]);
 
@@ -283,8 +283,6 @@ const GodDashboard = () => {
   }, [selectedAgent, refetchAllTrades]);
 
   const activeAgents = Array.isArray(leaderboard) ? leaderboard.length : 0;
-  const mostVolatile =
-    stats?.topGainers?.[0]?.assetId || stats?.topLosers?.[0]?.assetId || "N/A";
 
   const handleInjectNews = async () => {
     if (!newsAssetId || !newsHeadline) {
@@ -321,7 +319,7 @@ const GodDashboard = () => {
           </div>
         )}
         <div className="container mx-auto px-4 space-y-6">
-          <div className="rounded-md border border-border bg-secondary p-6 shadow-sm shadow-black/5">
+          <div className="rounded-md border border-border bg-card p-6 shadow-sm shadow-black/5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-4">
                 <Button
@@ -345,7 +343,7 @@ const GodDashboard = () => {
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <div className="inline-flex items-center rounded-full bg-muted px-4 py-2 text-sm font-medium text-foreground">
-                  <span className="mr-2 h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="mr-2 h-2 w-2 rounded-full bg-muted-foreground" />
                   {statusText}
                 </div>
                 <Button
@@ -358,10 +356,10 @@ const GodDashboard = () => {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-4">
-            <Card className="bg-secondary border-border">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle>24H Volume</CardTitle>
+                <CardTitle>24h traded value</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-semibold">
@@ -369,9 +367,9 @@ const GodDashboard = () => {
                 </p>
               </CardContent>
             </Card>
-            <Card className="bg-secondary border-border">
+            <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle>Total System Cash</CardTitle>
+                <CardTitle>Ranked account cash</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-semibold">
@@ -379,9 +377,9 @@ const GodDashboard = () => {
                 </p>
               </CardContent>
             </Card>
-            <Card className="bg-secondary border-border">
+            <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle>Active Agents</CardTitle>
+                <CardTitle>Accounts ranked</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-semibold">
@@ -389,21 +387,21 @@ const GodDashboard = () => {
                 </p>
               </CardContent>
             </Card>
-            <Card className="bg-secondary border-border">
+            <Card className="bg-card border-border">
               <CardHeader>
-                <CardTitle>Most Volatile Asset</CardTitle>
+                <CardTitle>Listed assets</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-semibold">
-                  {statsLoading ? "..." : mostVolatile}
+                  {approvedAssets?.length ?? "…"}
                 </p>
               </CardContent>
             </Card>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[60%_40%]">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
             <div className="space-y-4">
-              <Card className="bg-secondary border-border">
+              <Card className="bg-card border-border">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle>Top Assets Price History</CardTitle>
@@ -482,7 +480,7 @@ const GodDashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-secondary border-border">
+              <Card className="bg-card border-border">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle>Live Order Book</CardTitle>
@@ -551,9 +549,9 @@ const GodDashboard = () => {
             </div>
 
             <div className="space-y-4">
-              <Card className="bg-secondary border-border">
+              <Card className="bg-card border-border">
                 <CardHeader>
-                  <CardTitle>Market Manipulation (News)</CardTitle>
+                  <CardTitle>Publish market news</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
@@ -611,9 +609,9 @@ const GodDashboard = () => {
 
               <Card className="bg-black border border-white/10 text-white">
                 <CardHeader>
-                  <CardTitle>Live System Terminal</CardTitle>
+                  <CardTitle>Execution feed</CardTitle>
                 </CardHeader>
-                <CardContent className="h-[400px] overflow-y-auto rounded-md bg-slate-950/90 p-4 font-mono text-sm text-slate-200">
+                <CardContent className="h-[400px] overflow-y-auto rounded-md bg-background p-4 font-mono text-sm text-foreground">
                   {tradeLog.length === 0 ? (
                     <p className="text-muted-foreground">
                       Waiting for trade execution events...
@@ -632,8 +630,8 @@ const GodDashboard = () => {
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="bg-secondary border-border">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle>Top Assets</CardTitle>
               </CardHeader>
@@ -661,7 +659,7 @@ const GodDashboard = () => {
               </CardContent>
             </Card>
 
-            <Card className="bg-secondary border-border">
+            <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle>Agent Leaderboard</CardTitle>
               </CardHeader>
@@ -708,8 +706,8 @@ const GodDashboard = () => {
           </div>
 
           {selectedAgent ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
-              <div className="w-full max-w-4xl space-y-6 rounded-md bg-secondary border border-border p-6 shadow-2xl">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+              <div className="w-full max-w-4xl space-y-6 rounded-md bg-card border border-border p-6 shadow-2xl">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h2 className="text-2xl font-semibold">
@@ -728,7 +726,7 @@ const GodDashboard = () => {
                   </Button>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <Card className="bg-background border-border">
                     <CardHeader>
                       <CardTitle>Net Worth</CardTitle>
@@ -755,7 +753,7 @@ const GodDashboard = () => {
                   </Card>
                 </div>
 
-                <div className="grid gap-4 lg:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <Card className="bg-background border-border">
                     <CardHeader>
                       <CardTitle>Latest Trades</CardTitle>
