@@ -1,15 +1,18 @@
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
 import { MyOrders } from "@/components/MyOrders";
 import { OrderBook } from "@/components/OrderBook";
 import { useAuth } from "@/hooks/useAuth";
 import { useState, useEffect, useRef } from "react";
 import useSocket from "@/hooks/useSocket";
-import {
-  ArrowLeft,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  Users,
-} from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -39,8 +42,11 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const sending = useRef(false);
+  const [chartLoading, setChartLoading] = useState(true);
   const [chartError, setChartError] = useState("");
-  const [currentData, setCurrentData] = useState<number[]>([]);
+  const [currentData, setCurrentData] = useState<
+    { time: number; price: number }[]
+  >([]);
 
   const timeframes = ["1D", "1W", "1M", "3M", "1Y", "ALL"];
   const [currentPrice, setCurrentPrice] = useState<number>(
@@ -62,7 +68,7 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
       if (!payload) return;
       if (payload.assetId !== stock.id) return;
       const newPrice = Number(payload.price);
-      const oldPrice = stock.price || 0;
+      const oldPrice = (stock.price || 0) - (stock.change || 0);
       const change = newPrice - oldPrice;
       const changePercent = oldPrice ? (change / oldPrice) * 100 : 0;
       setCurrentPrice(newPrice);
@@ -74,7 +80,7 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
     return () => {
       socket.off("newTrade", handler);
     };
-  }, [socket, stock.id, stock.price]);
+  }, [socket, stock.id, stock.price, stock.change]);
 
   useEffect(() => {
     // whenever stock changes, reset current price to the provided value
@@ -88,7 +94,6 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
     marketCap > 0
       ? `$${marketCap.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
       : "N/A";
-  const formattedInvestors = stock?.investors != null ? stock.investors : "N/A";
 
   useEffect(() => {
     let active = true;
@@ -101,17 +106,32 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
       ALL: [3650, "1d"],
     };
     const [days, timeframe] = settings[selectedTimeframe];
+    setChartLoading(true);
+    setCurrentData([]);
+    setChartError("");
     const load = async () => {
       try {
         const { data } = await axiosInstance.get(`/trade/history/${stock.id}`, {
           params: { days, timeframe },
         });
         if (active) {
-          setCurrentData(data.map((p: any) => Number(p.close ?? p.price)));
+          setCurrentData(
+            data
+              .map((p: any) => ({
+                time: new Date(p.bucket ?? p.timestamp ?? p.time).getTime(),
+                price: Number(p.close ?? p.price),
+              }))
+              .filter(
+                (p: { time: number; price: number }) =>
+                  Number.isFinite(p.time) && Number.isFinite(p.price),
+              ),
+          );
           setChartError("");
         }
       } catch {
         if (active) setChartError("Price history unavailable");
+      } finally {
+        if (active) setChartLoading(false);
       }
     };
     void load();
@@ -121,25 +141,6 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
       clearInterval(timer);
     };
   }, [stock.id, selectedTimeframe]);
-  const generatePath = (data: number[]) => {
-    if (data.length === 0) return "";
-
-    const width = 300;
-    const height = 200;
-    const max = Math.max(...data);
-    const min = Math.min(...data);
-    const range = max - min || 1;
-
-    const points = data.map((value, index) => {
-      const x =
-        data.length === 1 ? width / 2 : (index / (data.length - 1)) * width;
-      const y = height - ((value - min) / range) * height;
-      return `${x},${y}`;
-    });
-
-    return `M ${points.join(" L ")}`;
-  };
-
   const handleTrade = () => {
     if (sending.current || !user) return;
     (async () => {
@@ -240,27 +241,29 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
   if (!stock) return null;
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="workspace">
       {/* Header */}
       <div className="flex items-center space-x-4">
         <Button
           variant="outline"
           size="sm"
           onClick={onBack}
+          aria-label="Back to market"
           className="bg-secondary border-border"
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex items-center space-x-3">
-          <img
-            src={stock.image}
-            alt={stock.name}
-            className="w-12 h-12 rounded-full object-cover border-2 border-border"
-          />
+          <div
+            aria-hidden
+            className="hidden sm:flex w-12 h-12 items-center justify-center rounded border bg-card font-mono"
+          >
+            {stock.name.slice(0, 2).toUpperCase()}
+          </div>
           <div>
             <h1 className="text-2xl font-bold">{stock.name}</h1>
-            <div className="flex items-center space-x-2">
-              <span className="text-3xl font-bold">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-2xl font-medium font-mono">
                 ${currentPrice.toFixed(2)}
               </span>
               <div
@@ -283,237 +286,243 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
         </div>
       </div>
 
-      {/* Chart */}
-      <Card className="bg-gradient-card border-border">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Price Chart</CardTitle>
-            <div className="flex space-x-1">
-              {timeframes.map((timeframe) => (
-                <Button
-                  key={timeframe}
-                  variant={
-                    selectedTimeframe === timeframe ? "default" : "outline"
-                  }
-                  size="sm"
-                  onClick={() => setSelectedTimeframe(timeframe)}
-                  className={
-                    selectedTimeframe === timeframe
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-background border-border hover:bg-accent"
-                  }
-                >
-                  {timeframe}
-                </Button>
-              ))}
-            </div>
+      <div className="grid xl:grid-cols-[minmax(0,1fr)_320px] gap-4 items-start">
+        <div className="min-w-0 space-y-4">
+          {/* Chart */}
+          <Card className="bg-gradient-card border-border">
+            <CardHeader>
+              <div className="flex flex-wrap gap-3 items-center justify-between">
+                <CardTitle>Price Chart</CardTitle>
+                <div className="flex space-x-1">
+                  {timeframes.map((timeframe) => (
+                    <Button
+                      key={timeframe}
+                      variant={
+                        selectedTimeframe === timeframe ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={() => setSelectedTimeframe(timeframe)}
+                      className={
+                        selectedTimeframe === timeframe
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-background border-border hover:bg-accent"
+                      }
+                    >
+                      {timeframe}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-72 md:h-80 w-full min-w-0">
+                {currentData.length ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={currentData}
+                      margin={{ top: 12, right: 8, left: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid
+                        stroke="hsl(var(--border))"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="time"
+                        type="number"
+                        domain={["dataMin", "dataMax"]}
+                        tickFormatter={(v) =>
+                          selectedTimeframe === "1D"
+                            ? new Date(v).toLocaleTimeString(undefined, {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : new Date(v).toLocaleDateString(undefined, {
+                                month: "short",
+                                day: "numeric",
+                              })
+                        }
+                        tick={{ fill: "#99999f", fontSize: 11 }}
+                        minTickGap={50}
+                      />
+                      <YAxis
+                        domain={["auto", "auto"]}
+                        width={65}
+                        tick={{ fill: "#99999f", fontSize: 11 }}
+                        tickFormatter={(v) => `$${Number(v).toFixed(2)}`}
+                      />
+                      <Tooltip
+                        labelFormatter={(v) =>
+                          new Date(Number(v)).toLocaleString()
+                        }
+                        formatter={(v: number) => [`$${v.toFixed(2)}`, "Price"]}
+                        contentStyle={{
+                          background: "#19191c",
+                          border: "1px solid #303034",
+                          borderRadius: 4,
+                        }}
+                      />
+                      <Line
+                        type="linear"
+                        dataKey="price"
+                        stroke={
+                          isPositive
+                            ? "hsl(var(--success))"
+                            : "hsl(var(--danger))"
+                        }
+                        strokeWidth={1.5}
+                        dot={currentData.length === 1}
+                        isAnimationActive={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                    {chartLoading
+                      ? "Loading price history�"
+                      : chartError || "No trades in this period."}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {chartError && <p role="alert">{chartError}</p>}
+          <OrderBook assetId={stock.id} />
+
+          <div className="terminal-panel p-5">
+            <p className="eyebrow mb-2">About this asset</p>
+            <p className="text-sm text-muted-foreground">
+              {stock.description ||
+                "An approved asset on the shared simulated exchange."}
+            </p>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Marked capitalization: {formattedMarketCap}
+            </p>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="w-full flex justify-center">
-            <svg width="300" height="200" className="overflow-visible">
-              <defs>
-                <linearGradient
-                  id="chartGradient"
-                  x1="0%"
-                  y1="0%"
-                  x2="0%"
-                  y2="100%"
-                >
-                  <stop
-                    offset="0%"
-                    stopColor={
-                      isPositive ? "hsl(var(--success))" : "hsl(var(--danger))"
-                    }
-                    stopOpacity="0.3"
-                  />
-                  <stop
-                    offset="100%"
-                    stopColor={
-                      isPositive ? "hsl(var(--success))" : "hsl(var(--danger))"
-                    }
-                    stopOpacity="0"
-                  />
-                </linearGradient>
-              </defs>
-              <path
-                d={generatePath(currentData)}
-                fill="none"
-                stroke={
-                  isPositive ? "hsl(var(--success))" : "hsl(var(--danger))"
+        </div>
+        {/* Trading Section */}
+        <Card className="bg-gradient-card border-border">
+          <CardHeader>
+            <CardTitle>Trade {stock.name}</CardTitle>
+            <CardDescription>
+              Buy or sell shares in this investment
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex space-x-2">
+              <Button
+                variant={tradeType === "buy" ? "default" : "outline"}
+                onClick={() => setTradeType("buy")}
+                className={
+                  tradeType === "buy"
+                    ? "flex-1 bg-primary text-primary-foreground"
+                    : "flex-1 bg-background border-border hover:bg-accent"
                 }
-                strokeWidth="3"
-                className="drop-shadow-sm"
-              />
-              <path
-                d={`${generatePath(currentData)} L 300,200 L 0,200 Z`}
-                fill="url(#chartGradient)"
-              />
-            </svg>
-          </div>
-        </CardContent>
-      </Card>
-
-      {chartError && <p role="alert">{chartError}</p>}
-      {!currentData.length && !chartError && <p>No trades in this period.</p>}
-      <OrderBook assetId={stock.id} />
-      <MyOrders assetId={stock.id} />
-      {/* Description */}
-      <Card className="bg-gradient-card border-border">
-        <CardHeader>
-          <CardTitle>About {stock.name}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-muted-foreground leading-relaxed">
-            {stock.description ||
-              stock.longDescription ||
-              "This offering was approved for public trading. Review the current market conditions and performance before trading."}
-          </p>
-
-          <div className="grid grid-cols-2 gap-4 pt-4">
-            <div className="flex items-center space-x-2">
-              <Users className="h-4 w-4 text-primary" />
-              <div>
-                <p className="text-sm text-muted-foreground">Investors</p>
-                <p className="font-semibold">{formattedInvestors}</p>
-              </div>
+              >
+                Buy
+              </Button>
+              <Button
+                variant={tradeType === "sell" ? "default" : "outline"}
+                onClick={() => setTradeType("sell")}
+                className={
+                  tradeType === "sell"
+                    ? "flex-1 bg-primary text-primary-foreground"
+                    : "flex-1 bg-background border-border hover:bg-accent"
+                }
+              >
+                Sell
+              </Button>
             </div>
-            <div className="flex items-center space-x-2">
-              <DollarSign className="h-4 w-4 text-primary" />
-              <div>
-                <p className="text-sm text-muted-foreground">Market Cap</p>
-                <p className="font-semibold">{formattedMarketCap}</p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Trading Section */}
-      <Card className="bg-gradient-card border-border">
-        <CardHeader>
-          <CardTitle>Trade {stock.name}</CardTitle>
-          <CardDescription>
-            Buy or sell shares in this investment
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex space-x-2">
-            <Button
-              variant={tradeType === "buy" ? "default" : "outline"}
-              onClick={() => setTradeType("buy")}
-              className={
-                tradeType === "buy"
-                  ? "flex-1 bg-success hover:bg-success/90 text-success-foreground"
-                  : "flex-1 bg-background border-border hover:bg-accent"
-              }
-            >
-              Buy
-            </Button>
-            <Button
-              variant={tradeType === "sell" ? "default" : "outline"}
-              onClick={() => setTradeType("sell")}
-              className={
-                tradeType === "sell"
-                  ? "flex-1 bg-danger hover:bg-danger/90 text-danger-foreground"
-                  : "flex-1 bg-background border-border hover:bg-accent"
-              }
-            >
-              Sell
-            </Button>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="amount">Quantity (Shares)</Label>
-            <Input
-              id="amount"
-              type="number"
-              value={tradeAmount}
-              onChange={(e) => setTradeAmount(e.target.value)}
-              placeholder="Enter number of shares"
-              className="bg-background border-border"
-            />
-          </div>
-
-          <div className="flex space-x-2">
-            <Button
-              variant={orderKind === "MARKET" ? "default" : "outline"}
-              onClick={() => setOrderKind("MARKET")}
-              className={
-                orderKind === "MARKET"
-                  ? "bg-primary text-primary-foreground"
-                  : ""
-              }
-            >
-              Market
-            </Button>
-            <Button
-              variant={orderKind === "LIMIT" ? "default" : "outline"}
-              onClick={() => setOrderKind("LIMIT")}
-              className={
-                orderKind === "LIMIT"
-                  ? "bg-primary text-primary-foreground"
-                  : ""
-              }
-            >
-              Limit
-            </Button>
-          </div>
-
-          {
             <div className="space-y-2">
-              <Label htmlFor="limitPrice">
-                {orderKind === "LIMIT"
-                  ? "Limit price"
-                  : tradeType === "buy"
-                    ? "Maximum buy price"
-                    : "Minimum sell price"}{" "}
-                ($)
-              </Label>
+              <Label htmlFor="amount">Quantity (Shares)</Label>
               <Input
-                id="limitPrice"
+                id="amount"
                 type="number"
-                min="0.01"
-                step="0.01"
-                value={limitPrice}
-                onChange={(e) => setLimitPrice(e.target.value)}
-                placeholder={String(currentPrice)}
+                value={tradeAmount}
+                onChange={(e) => setTradeAmount(e.target.value)}
+                placeholder="Enter number of shares"
                 className="bg-background border-border"
               />
             </div>
-          }
 
-          <Button
-            onClick={handleTrade}
-            className={`w-full ${
-              tradeType === "buy"
-                ? "bg-gradient-success hover:opacity-90"
-                : "bg-gradient-danger hover:opacity-90"
-            } text-white`}
-            disabled={
-              !tradeAmount ||
-              submitting ||
-              !user ||
-              !isUuid(stock.id) ||
-              (orderKind === "LIMIT" && !limitPrice)
+            <div className="flex space-x-2">
+              <Button
+                variant={orderKind === "MARKET" ? "default" : "outline"}
+                onClick={() => setOrderKind("MARKET")}
+                className={
+                  orderKind === "MARKET"
+                    ? "bg-primary text-primary-foreground"
+                    : ""
+                }
+              >
+                Market
+              </Button>
+              <Button
+                variant={orderKind === "LIMIT" ? "default" : "outline"}
+                onClick={() => setOrderKind("LIMIT")}
+                className={
+                  orderKind === "LIMIT"
+                    ? "bg-primary text-primary-foreground"
+                    : ""
+                }
+              >
+                Limit
+              </Button>
+            </div>
+
+            {
+              <div className="space-y-2">
+                <Label htmlFor="limitPrice">
+                  {orderKind === "LIMIT"
+                    ? "Limit price"
+                    : tradeType === "buy"
+                      ? "Maximum buy price"
+                      : "Minimum sell price"}{" "}
+                  ($)
+                </Label>
+                <Input
+                  id="limitPrice"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={limitPrice}
+                  onChange={(e) => setLimitPrice(e.target.value)}
+                  placeholder={String(currentPrice)}
+                  className="bg-background border-border"
+                />
+              </div>
             }
-          >
-            {tradeType === "buy" ? "Buy" : "Sell"} {stock.name}
-          </Button>
-          {!user && <p className="text-sm">Sign in to trade.</p>}
-          {orderKind === "MARKET" && (
-            <p className="text-sm text-muted-foreground">
-              Fills immediately within your price protection. Any remainder is
-              cancelled.
-            </p>
-          )}
-          {!isUuid(stock.id) && (
-            <p className="text-sm text-muted-foreground mt-2">
-              Trading disabled for this item (invalid asset id)
-            </p>
-          )}
-        </CardContent>
-      </Card>
+
+            <Button
+              onClick={handleTrade}
+              className="w-full"
+              disabled={
+                !tradeAmount ||
+                submitting ||
+                !user ||
+                !isUuid(stock.id) ||
+                (orderKind === "LIMIT" && !limitPrice)
+              }
+            >
+              {tradeType === "buy" ? "Buy" : "Sell"} {stock.name}
+            </Button>
+            {!user && <p className="text-sm">Sign in to trade.</p>}
+            {orderKind === "MARKET" && (
+              <p className="text-sm text-muted-foreground">
+                Fills immediately within your price protection. Any remainder is
+                cancelled.
+              </p>
+            )}
+            {!isUuid(stock.id) && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Trading disabled for this item (invalid asset id)
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      <MyOrders assetId={stock.id} />
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -5,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import GodDashboard from "./pages/GodDashboard";
+const GodDashboard = lazy(() => import("./pages/GodDashboard"));
 import { AuthProvider } from "./hooks/AuthProvider";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -24,7 +25,11 @@ const App = () => (
               path="/admin"
               element={
                 <ProtectedRoute requiredRole="admin">
-                  <GodDashboard />
+                  <Suspense
+                    fallback={<p className="p-8">Loading operations�</p>}
+                  >
+                    <GodDashboard />
+                  </Suspense>
                 </ProtectedRoute>
               }
             />

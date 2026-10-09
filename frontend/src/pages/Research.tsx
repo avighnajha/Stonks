@@ -155,7 +155,7 @@ const input =
   "w-full rounded border border-border bg-background px-3 py-2 text-sm";
 const button =
   "rounded border border-border px-3 py-2 text-sm hover:bg-accent disabled:opacity-40";
-const card = "rounded-xl border border-border bg-card p-5 space-y-4";
+const card = "rounded-md border border-border bg-card p-5 space-y-4";
 const fmt = (x: unknown) =>
   typeof x === "number"
     ? x.toLocaleString(undefined, { maximumFractionDigits: 4 })
@@ -199,7 +199,7 @@ export function Research() {
       Array<{ id: string; fixture: boolean }>
     >([]);
   const [selected, setSelected] = useState<Run | null>(null),
-    [tab, setTab] = useState("design"),
+    [tab, setTab] = useState("overview"),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
@@ -209,6 +209,7 @@ export function Research() {
   const [sweep, setSweep] = useState("none"),
     [sweepGroup, setSweepGroup] = useState(""),
     [sweepValues, setSweepValues] = useState("");
+  const [designStep, setDesignStep] = useState(0);
   const [filter, setFilter] = useState("");
   const invalidParameters = useRef(new Set<number>());
   const activeOwner = useRef(user?.id);
@@ -363,6 +364,7 @@ export function Research() {
     setHypothesis(e.hypothesis);
     setEditing(e.id);
     setTab("design");
+    setDesignStep(0);
     setNotice("Draft loaded. Existing runs remain unchanged.");
   }
   async function inspect(r: Run) {
@@ -386,13 +388,26 @@ export function Research() {
           Create isolated experiments, configure Python agents and compare
           repeatable runs. Sign in to keep your experiments private.
         </p>
-        <p className="mt-6">
-          The shared market remains available in the Market tab.
+        <div className="grid sm:grid-cols-3 gap-4 mt-10">
+          {[
+            ["01", "Design a market"],
+            ["02", "Run Python agents"],
+            ["03", "Compare the evidence"],
+          ].map(([n, t]) => (
+            <div className="terminal-panel p-5" key={n}>
+              <p className="eyebrow mb-6">{n} / Research</p>
+              <h2 className="font-medium">{t}</h2>
+            </div>
+          ))}
+        </div>
+        <p className="mt-6 text-sm text-muted-foreground">
+          Use Login to open your private workspace. The shared market is
+          available in the Market tab.
         </p>
       </div>
     );
   return (
-    <div className="container py-8 max-w-7xl space-y-6">
+    <div className="workspace">
       <header className="flex flex-wrap justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
@@ -412,16 +427,18 @@ export function Research() {
             setHypothesis("");
             setEditing(null);
             setTab("design");
+            setDesignStep(0);
           }}
         >
           New experiment
         </button>
       </header>
       <nav className="flex gap-2 flex-wrap" aria-label="Research views">
-        {["design", "runs", "results", "compare"].map((t) => (
+        {["overview", "design", "runs", "results", "compare"].map((t) => (
           <button
             key={t}
-            className={`${button} ${tab === t ? "bg-primary text-primary-foreground" : ""}`}
+            aria-current={tab === t ? "page" : undefined}
+            className={`${button} ${tab === t ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}`}
             onClick={() => setTab(t)}
           >
             {t[0].toUpperCase() + t.slice(1)}
@@ -441,10 +458,139 @@ export function Research() {
           {notice}
         </p>
       )}
+      {tab === "overview" && (
+        <div className="space-y-5">
+          <div className="grid sm:grid-cols-3 gap-4">
+            {[
+              ["Saved experiments", experiments.length],
+              [
+                "Active runs in recent history",
+                runs.filter((r) => ["QUEUED", "RUNNING"].includes(r.status))
+                  .length,
+              ],
+              [
+                "Completed in recent history",
+                runs.filter((r) => r.status === "COMPLETED").length,
+              ],
+            ].map(([label, value]) => (
+              <div key={label} className="terminal-panel p-5">
+                <p className="eyebrow mb-3">{label}</p>
+                <p className="metric-value">{value}</p>
+              </div>
+            ))}
+          </div>
+          <section className="terminal-panel overflow-hidden">
+            <div className="p-5 border-b">
+              <h2 className="font-semibold">Personal research</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Your questions, configurations and repeatable runs.
+              </p>
+            </div>
+            {!experiments.length ? (
+              <div className="p-8 md:p-12">
+                <p className="text-xl font-medium">Start with a question.</p>
+                <p className="text-muted-foreground text-sm mt-2 max-w-xl">
+                  Choose assets, assemble a population and vary one property.
+                  Compare repeated seeds to see whether the effect persists.
+                </p>
+                <button
+                  className={`${button} mt-5 bg-primary text-primary-foreground hover:bg-primary/90`}
+                  onClick={() => {
+                    setTab("design");
+                    setDesignStep(0);
+                  }}
+                >
+                  Design your first experiment
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead>
+                    <tr>
+                      <th>Experiment</th>
+                      <th>Assets</th>
+                      <th>Agents</th>
+                      <th>Duration</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {experiments.map((e) => (
+                      <tr key={e.id}>
+                        <td>
+                          <p className="font-medium">{e.title}</p>
+                          <p className="text-xs text-muted-foreground max-w-sm truncate">
+                            {e.hypothesis || "No hypothesis recorded"}
+                          </p>
+                        </td>
+                        <td>{e.manifest.assets.length}</td>
+                        <td>
+                          {e.manifest.groups.reduce((n, g) => n + g.count, 0)}
+                        </td>
+                        <td>{e.manifest.durationMs / 1000}s</td>
+                        <td>
+                          <button className={button} onClick={() => clone(e)}>
+                            Open draft
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+          <div className="grid md:grid-cols-3 gap-4">
+            {[
+              [
+                "01 / Configure",
+                "Set assets, economic factors, agents and scheduled information.",
+              ],
+              [
+                "02 / Run",
+                "Each simulation has independent books and advances in logical time.",
+              ],
+              [
+                "03 / Compare",
+                "Inspect spreads, price discovery and cohort P&L across repeated seeds.",
+              ],
+            ].map(([title, body]) => (
+              <div className="p-5 border-t" key={title}>
+                <h3 className="text-sm font-medium">{title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{body}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Shows up to 100 saved experiments and the 200 most recent runs.
+          </p>
+        </div>
+      )}
       {tab === "design" && (
         <div className="grid xl:grid-cols-[1fr_280px] gap-6">
-          <div className="space-y-6">
-            <section className={card}>
+          <div className="space-y-4 min-w-0">
+            <nav
+              aria-label="Experiment setup"
+              className="grid grid-cols-2 sm:grid-cols-4 gap-2"
+            >
+              {["Question & timing", "Assets", "Population", "Information"].map(
+                (label, i) => (
+                  <button
+                    key={label}
+                    aria-current={designStep === i ? "step" : undefined}
+                    className={`${button} text-left ${designStep === i ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}`}
+                    onClick={() => setDesignStep(i)}
+                  >
+                    <span className="block text-[10px] mb-1 opacity-60">
+                      0{i + 1}
+                    </span>
+                    {label}
+                  </button>
+                ),
+              )}
+            </nav>
+            <section hidden={designStep !== 0} className={card}>
               <h2 className="text-xl font-semibold">Question & timing</h2>
               <Field label="Title">
                 <input
@@ -490,7 +636,7 @@ export function Research() {
                 runs use the same exchange rules. Fees are currently zero.
               </p>
             </section>
-            <section className={card}>
+            <section hidden={designStep !== 1} className={card}>
               <h2 className="text-xl font-semibold">
                 Assets & economic relationships
               </h2>
@@ -669,7 +815,7 @@ export function Research() {
                 </div>
               ))}
             </section>
-            <section className={card}>
+            <section hidden={designStep !== 2} className={card}>
               <h2 className="text-xl font-semibold">Agent population</h2>
               <p className="text-sm text-muted-foreground">
                 Idle and scripted are infrastructure fixtures. Your Python
@@ -824,7 +970,7 @@ export function Research() {
                 Add group
               </button>
             </section>
-            <section className={card}>
+            <section hidden={designStep !== 3} className={card}>
               <h2 className="text-xl font-semibold">Scheduled information</h2>
               <p className="text-sm text-muted-foreground">
                 A hidden reference-value shock occurs first; public news is
@@ -932,6 +1078,22 @@ export function Research() {
                 Add event
               </button>
             </section>
+            <div className="flex justify-between">
+              <button
+                className={button}
+                disabled={designStep === 0}
+                onClick={() => setDesignStep((s) => s - 1)}
+              >
+                Previous step
+              </button>
+              <button
+                className={button}
+                disabled={designStep === 3}
+                onClick={() => setDesignStep((s) => s + 1)}
+              >
+                Next step
+              </button>
+            </div>
           </div>
           <aside className={`${card} h-fit xl:sticky xl:top-6`}>
             <h2 className="font-semibold">Run configuration</h2>
@@ -1005,7 +1167,7 @@ export function Research() {
               Save draft
             </button>
             <button
-              className={`${button} w-full bg-primary text-primary-foreground`}
+              className={`${button} w-full bg-primary text-primary-foreground hover:bg-primary/90`}
               disabled={busy}
               onClick={() => void perform(launch)}
             >
@@ -1141,6 +1303,7 @@ export function Research() {
                       setTitle("Cloned run");
                       setHypothesis("");
                       setTab("design");
+                      setDesignStep(0);
                     }}
                   >
                     Clone configuration
@@ -1195,19 +1358,25 @@ export function Research() {
                       }}
                     />
                     <YAxis domain={["auto", "auto"]} width={65} />
-                    <Tooltip />
+                    <Tooltip
+                      contentStyle={{
+                        background: "#19191c",
+                        border: "1px solid #303034",
+                        borderRadius: 4,
+                      }}
+                    />
                     <Legend verticalAlign="top" />
                     <Line
                       dataKey="reference"
                       name="Hidden reference (observer)"
-                      stroke="#eab308"
+                      stroke="#b7b7c0"
                       dot={false}
                       isAnimationActive={false}
                     />
                     <Line
                       dataKey="mid"
                       name="Two-sided midpoint"
-                      stroke="#22c55e"
+                      stroke="#55c48c"
                       dot={false}
                       connectNulls={false}
                       isAnimationActive={false}

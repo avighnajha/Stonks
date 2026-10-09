@@ -1,3 +1,4 @@
+import { Layout } from "@/components/Layout";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -262,7 +263,7 @@ const GodDashboard = () => {
     );
   }, [leaderboard]);
 
-  const colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+  const colors = ["#d4d4dc", "#55c48c", "#aaaac0", "#eb7777", "#85858d"];
 
   const selectedAgentTrades = useMemo(() => {
     if (!selectedAgent || !Array.isArray(allTrades)) return [];
@@ -307,517 +308,520 @@ const GodDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground py-8">
-      {error && (
-        <div className="container mx-auto px-4 mb-4">
-          <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-lg">
-            Error: {error}
-          </div>
-        </div>
-      )}
-      <div className="container mx-auto px-4 space-y-6">
-        <div className="rounded-3xl border border-border bg-secondary p-6 shadow-sm shadow-black/5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/")}
-                className="hover:bg-accent"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
-                  Mission Control
-                </p>
-                <h1 className="mt-2 text-4xl font-semibold">
-                  God Mode Dashboard
-                </h1>
-                <p className="mt-2 text-sm text-muted-foreground max-w-2xl">
-                  Monitor trader performance, order book health, and live
-                  execution events across the exchange.
-                </p>
-              </div>
+    <Layout
+      activeTab="operations"
+      onTabChange={(tab) => navigate(`/?tab=${tab}`)}
+    >
+      <div className="min-h-screen bg-background text-foreground py-8">
+        {error && (
+          <div className="container mx-auto px-4 mb-4">
+            <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-lg">
+              Error: {error}
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="inline-flex items-center rounded-full bg-muted px-4 py-2 text-sm font-medium text-foreground">
-                <span className="mr-2 h-2 w-2 rounded-full bg-emerald-500" />
-                {statusText}
+          </div>
+        )}
+        <div className="container mx-auto px-4 space-y-6">
+          <div className="rounded-md border border-border bg-secondary p-6 shadow-sm shadow-black/5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate("/")}
+                  className="hover:bg-accent"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <div>
+                  <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
+                    Shared exchange
+                  </p>
+                  <h1 className="mt-2 text-3xl font-semibold">Operations</h1>
+                  <p className="mt-2 text-sm text-muted-foreground max-w-2xl">
+                    Monitor trader performance, order book health, and live
+                    execution events across the exchange.
+                  </p>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="inline-flex items-center rounded-full bg-muted px-4 py-2 text-sm font-medium text-foreground">
+                  <span className="mr-2 h-2 w-2 rounded-full bg-emerald-500" />
+                  {statusText}
+                </div>
                 <Button
                   variant="outline"
-                  className="border-border hover:bg-accent"
+                  onClick={() => navigate("/?tab=approvals")}
                 >
-                  Pause Simulation
-                </Button>
-                <Button className="bg-destructive text-white hover:bg-destructive/90">
-                  Flush Order Book
+                  Asset approvals
                 </Button>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card className="bg-secondary border-border">
-            <CardHeader>
-              <CardTitle>24H Volume</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">
-                {statsLoading ? "..." : formatMoney(stats?.volume24h || 0)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="bg-secondary border-border">
-            <CardHeader>
-              <CardTitle>Total System Cash</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">
-                {leaderboardLoading ? "..." : formatMoney(totalCash)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="bg-secondary border-border">
-            <CardHeader>
-              <CardTitle>Active Agents</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">
-                {leaderboardLoading ? "..." : activeAgents}
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="bg-secondary border-border">
-            <CardHeader>
-              <CardTitle>Most Volatile Asset</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">
-                {statsLoading ? "..." : mostVolatile}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-4 xl:grid-cols-[60%_40%]">
-          <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-4">
             <Card className="bg-secondary border-border">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Top Assets Price History</CardTitle>
-                  <Select value={timeframe} onValueChange={setTimeframe}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="5m">5m</SelectItem>
-                      <SelectItem value="15m">15m</SelectItem>
-                      <SelectItem value="1h">1h</SelectItem>
-                      <SelectItem value="4h">4h</SelectItem>
-                      <SelectItem value="1d">1d</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardHeader>
-              <CardContent className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={liveChartData}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                  >
-                    <XAxis
-                      dataKey="timestamp"
-                      tick={{ fill: "#94a3b8" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fill: "#94a3b8" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="#334155"
-                      vertical={false}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "#0f172a",
-                        border: "1px solid #334155",
-                      }}
-                    />
-                    {topAssets.map(
-                      (asset: any, index: number) =>
-                        visibleAssets.has(asset.assetId) && (
-                          <Line
-                            key={asset.assetId}
-                            type="monotone"
-                            dataKey={asset.assetId}
-                            stroke={colors[index % colors.length]}
-                            strokeWidth={2}
-                            dot={false}
-                            name={asset.assetId.substring(0, 8)}
-                          />
-                        ),
-                    )}
-                    <Legend
-                      verticalAlign="bottom"
-                      height={36}
-                      onClick={(e: any) => {
-                        const assetId = String(e.dataKey);
-                        const newVisible = new Set(visibleAssets);
-                        if (newVisible.has(assetId)) {
-                          newVisible.delete(assetId);
-                        } else {
-                          newVisible.add(assetId);
-                        }
-                        setVisibleAssets(newVisible);
-                      }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-secondary border-border">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Live Order Book</CardTitle>
-                  <Select
-                    value={selectedAsset || ""}
-                    onValueChange={setSelectedAsset}
-                  >
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Select asset" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(approvedAssets || []).map((asset: any) => (
-                        <SelectItem key={asset.id} value={asset.id}>
-                          {asset.name || asset.id.substring(0, 8)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <CardTitle>24H Volume</CardTitle>
               </CardHeader>
               <CardContent>
-                {!selectedAsset ? (
-                  <p className="text-muted-foreground text-center py-8">
-                    Select an asset to view its order book
-                  </p>
-                ) : (
-                  <div className="flex flex-col gap-4 md:flex-row">
-                    <div className="flex-1 rounded-3xl border border-emerald-500/30 p-3">
-                      <div className="mb-3 flex items-center justify-between text-sm font-semibold text-emerald-400">
-                        <span>Buy Wall</span>
-                        <span>Top {orderBook?.buys?.length || 0}</span>
-                      </div>
-                      <div className="space-y-2 text-sm">
-                        {(orderBook?.buys || []).map((row: any) => (
-                          <div
-                            key={row.price}
-                            className="flex justify-between rounded-2xl bg-emerald-500/5 px-3 py-2"
-                          >
-                            <span>{Number(row.quantity).toFixed(4)} @</span>
-                            <span>{formatMoney(Number(row.price))}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex-1 rounded-3xl border border-rose-500/30 p-3">
-                      <div className="mb-3 flex items-center justify-between text-sm font-semibold text-rose-400">
-                        <span>Sell Wall</span>
-                        <span>Top {orderBook?.sells?.length || 0}</span>
-                      </div>
-                      <div className="space-y-2 text-sm">
-                        {(orderBook?.sells || []).map((row: any) => (
-                          <div
-                            key={row.price}
-                            className="flex justify-between rounded-2xl bg-rose-500/5 px-3 py-2"
-                          >
-                            <span>{Number(row.quantity).toFixed(4)} @</span>
-                            <span>{formatMoney(Number(row.price))}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <p className="text-3xl font-semibold">
+                  {statsLoading ? "..." : formatMoney(stats?.volume24h || 0)}
+                </p>
               </CardContent>
             </Card>
-          </div>
-
-          <div className="space-y-4">
             <Card className="bg-secondary border-border">
               <CardHeader>
-                <CardTitle>Market Manipulation (News)</CardTitle>
+                <CardTitle>Total System Cash</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Asset
-                  </label>
-                  <Select value={newsAssetId} onValueChange={setNewsAssetId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select asset" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(approvedAssets || []).map((asset: any) => (
-                        <SelectItem key={asset.id} value={asset.id}>
-                          {asset.name || asset.id.substring(0, 8)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Headline
-                  </label>
-                  <input
-                    type="text"
-                    value={newsHeadline}
-                    onChange={(e) => setNewsHeadline(e.target.value)}
-                    placeholder="e.g., CEO resigns in scandal!"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Sentiment: {newsSentiment}
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={newsSentiment}
-                    onChange={(e) => setNewsSentiment(Number(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span>Max Bearish (0)</span>
-                    <span>Neutral (50)</span>
-                    <span>Max Bullish (100)</span>
-                  </div>
-                </div>
-                <Button onClick={handleInjectNews} className="w-full">
-                  Inject News
-                </Button>
+              <CardContent>
+                <p className="text-3xl font-semibold">
+                  {leaderboardLoading ? "..." : formatMoney(totalCash)}
+                </p>
               </CardContent>
             </Card>
-
-            <Card className="bg-black border border-white/10 text-white">
+            <Card className="bg-secondary border-border">
               <CardHeader>
-                <CardTitle>Live System Terminal</CardTitle>
+                <CardTitle>Active Agents</CardTitle>
               </CardHeader>
-              <CardContent className="h-[400px] overflow-y-auto rounded-3xl bg-slate-950/90 p-4 font-mono text-sm text-slate-200">
-                {tradeLog.length === 0 ? (
-                  <p className="text-muted-foreground">
-                    Waiting for trade execution events...
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {tradeLog.map((line, index) => (
-                      <div key={index} className="whitespace-pre-wrap">
-                        {line}
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <CardContent>
+                <p className="text-3xl font-semibold">
+                  {leaderboardLoading ? "..." : activeAgents}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-secondary border-border">
+              <CardHeader>
+                <CardTitle>Most Volatile Asset</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-semibold">
+                  {statsLoading ? "..." : mostVolatile}
+                </p>
               </CardContent>
             </Card>
           </div>
-        </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card className="bg-secondary border-border">
-            <CardHeader>
-              <CardTitle>Top Assets</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {(stats?.topAssetsByVolume || []).map((asset: any) => (
-                  <button
-                    key={asset.assetId}
-                    type="button"
-                    onClick={() => setSelectedAsset(asset.assetId)}
-                    className="flex w-full items-center justify-between rounded-3xl border border-border bg-background/80 px-4 py-3 text-left hover:border-primary hover:bg-primary/5"
-                  >
-                    <div>
-                      <div className="font-medium">{asset.assetId}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Volume: {formatMoney(Number(asset.volume))}
-                      </div>
-                    </div>
-                    <div className="text-sm text-muted-foreground">Select</div>
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid gap-4 xl:grid-cols-[60%_40%]">
+            <div className="space-y-4">
+              <Card className="bg-secondary border-border">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Top Assets Price History</CardTitle>
+                    <Select value={timeframe} onValueChange={setTimeframe}>
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5m">5m</SelectItem>
+                        <SelectItem value="15m">15m</SelectItem>
+                        <SelectItem value="1h">1h</SelectItem>
+                        <SelectItem value="4h">4h</SelectItem>
+                        <SelectItem value="1d">1d</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardHeader>
+                <CardContent className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={liveChartData}
+                      margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                    >
+                      <XAxis
+                        dataKey="timestamp"
+                        tick={{ fill: "#a0a0a8" }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fill: "#a0a0a8" }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="#303034"
+                        vertical={false}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "#19191c",
+                          border: "1px solid #303034",
+                        }}
+                      />
+                      {topAssets.map(
+                        (asset: any, index: number) =>
+                          visibleAssets.has(asset.assetId) && (
+                            <Line
+                              key={asset.assetId}
+                              type="monotone"
+                              dataKey={asset.assetId}
+                              stroke={colors[index % colors.length]}
+                              strokeWidth={2}
+                              dot={false}
+                              name={asset.assetId.substring(0, 8)}
+                            />
+                          ),
+                      )}
+                      <Legend
+                        verticalAlign="bottom"
+                        height={36}
+                        onClick={(e: any) => {
+                          const assetId = String(e.dataKey);
+                          const newVisible = new Set(visibleAssets);
+                          if (newVisible.has(assetId)) {
+                            newVisible.delete(assetId);
+                          } else {
+                            newVisible.add(assetId);
+                          }
+                          setVisibleAssets(newVisible);
+                        }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
 
-          <Card className="bg-secondary border-border">
-            <CardHeader>
-              <CardTitle>Agent Leaderboard</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm text-muted-foreground">
-                  <thead>
-                    <tr>
-                      <th className="px-4 py-3">Rank</th>
-                      <th className="px-4 py-3">Agent</th>
-                      <th className="px-4 py-3">Cash</th>
-                      <th className="px-4 py-3">Portfolio</th>
-                      <th className="px-4 py-3">Net worth</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.isArray(leaderboard) &&
-                      leaderboard.map((agent: any, index: number) => (
-                        <tr
-                          key={agent.userId}
-                          className="cursor-pointer border-t border-border hover:bg-primary/5"
-                          onClick={() => setSelectedAgent(agent)}
-                        >
-                          <td className="px-4 py-3">{index + 1}</td>
-                          <td className="px-4 py-3 font-medium text-foreground">
-                            {agent.name}
-                          </td>
-                          <td className="px-4 py-3">
-                            {formatMoney(Number(agent.cash) || 0)}
-                          </td>
-                          <td className="px-4 py-3">
-                            {formatMoney(Number(agent.portfolioValue) || 0)}
-                          </td>
-                          <td className="px-4 py-3">
-                            {formatMoney(Number(agent.netWorth) || 0)}
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {selectedAgent ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
-            <div className="w-full max-w-4xl space-y-6 rounded-3xl bg-secondary border border-border p-6 shadow-2xl">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl font-semibold">
-                    Agent Profile: {selectedAgent.name}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Liquid cash, portfolio exposure, and recent trade activity.
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedAgent(null)}
-                >
-                  Close
-                </Button>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card className="bg-background border-border">
-                  <CardHeader>
-                    <CardTitle>Net Worth</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-3xl font-semibold">
-                      {formatMoney(Number(selectedAgent.netWorth) || 0)}
-                    </p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Liquid Cash:{" "}
-                      {formatMoney(Number(selectedAgent.cash) || 0)}
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card className="bg-background border-border">
-                  <CardHeader>
-                    <CardTitle>Portfolio Value</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-3xl font-semibold">
-                      {formatMoney(Number(selectedAgent.portfolioValue) || 0)}
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-2">
-                <Card className="bg-background border-border">
-                  <CardHeader>
-                    <CardTitle>Latest Trades</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {selectedAgentTrades.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        No recent trades found yet.
-                      </p>
-                    ) : (
-                      <div className="space-y-3">
-                        {selectedAgentTrades.map((trade: any) => (
-                          <div
-                            key={trade.id}
-                            className="rounded-2xl bg-muted p-3"
-                          >
-                            <div className="flex items-center justify-between text-sm font-medium">
-                              <span>{trade.asset_id}</span>
-                              <span>
-                                {trade.timestamp
-                                  ? new Date(trade.timestamp).toLocaleString()
-                                  : "N/A"}
-                              </span>
-                            </div>
-                            <div className="mt-2 text-sm text-muted-foreground">
-                              {trade.buyer_id === selectedAgent.userId
-                                ? "Bought"
-                                : "Sold"}{" "}
-                              {trade.quantity} @{" "}
-                              {formatMoney(Number(trade.price))}
-                            </div>
-                          </div>
+              <Card className="bg-secondary border-border">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Live Order Book</CardTitle>
+                    <Select
+                      value={selectedAsset || ""}
+                      onValueChange={setSelectedAsset}
+                    >
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Select asset" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(approvedAssets || []).map((asset: any) => (
+                          <SelectItem key={asset.id} value={asset.id}>
+                            {asset.name || asset.id.substring(0, 8)}
+                          </SelectItem>
                         ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-                <Card className="bg-background border-border">
-                  <CardHeader>
-                    <CardTitle>Holdings Insight</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                      This profile is derived from the leaderboard snapshot and
-                      recent trade history.
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {!selectedAsset ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      Select an asset to view its order book
                     </p>
-                    <div className="mt-4 rounded-3xl bg-muted p-4 text-sm">
-                      <p>
-                        Cash: {formatMoney(Number(selectedAgent.cash) || 0)}
-                      </p>
-                      <p className="mt-2">
-                        Portfolio:{" "}
-                        {formatMoney(Number(selectedAgent.portfolioValue) || 0)}
-                      </p>
+                  ) : (
+                    <div className="flex flex-col gap-4 md:flex-row">
+                      <div className="flex-1 rounded-md border border-emerald-500/30 p-3">
+                        <div className="mb-3 flex items-center justify-between text-sm font-semibold text-emerald-400">
+                          <span>Buy Wall</span>
+                          <span>Top {orderBook?.buys?.length || 0}</span>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          {(orderBook?.buys || []).map((row: any) => (
+                            <div
+                              key={row.price}
+                              className="flex justify-between rounded-md bg-emerald-500/5 px-3 py-2"
+                            >
+                              <span>{Number(row.quantity).toFixed(4)} @</span>
+                              <span>{formatMoney(Number(row.price))}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex-1 rounded-md border border-rose-500/30 p-3">
+                        <div className="mb-3 flex items-center justify-between text-sm font-semibold text-rose-400">
+                          <span>Sell Wall</span>
+                          <span>Top {orderBook?.sells?.length || 0}</span>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          {(orderBook?.sells || []).map((row: any) => (
+                            <div
+                              key={row.price}
+                              className="flex justify-between rounded-md bg-rose-500/5 px-3 py-2"
+                            >
+                              <span>{Number(row.quantity).toFixed(4)} @</span>
+                              <span>{formatMoney(Number(row.price))}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-4">
+              <Card className="bg-secondary border-border">
+                <CardHeader>
+                  <CardTitle>Market Manipulation (News)</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Asset
+                    </label>
+                    <Select value={newsAssetId} onValueChange={setNewsAssetId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select asset" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(approvedAssets || []).map((asset: any) => (
+                          <SelectItem key={asset.id} value={asset.id}>
+                            {asset.name || asset.id.substring(0, 8)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Headline
+                    </label>
+                    <input
+                      type="text"
+                      value={newsHeadline}
+                      onChange={(e) => setNewsHeadline(e.target.value)}
+                      placeholder="e.g., CEO resigns in scandal!"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Sentiment: {newsSentiment}
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={newsSentiment}
+                      onChange={(e) => setNewsSentiment(Number(e.target.value))}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                      <span>Max Bearish (0)</span>
+                      <span>Neutral (50)</span>
+                      <span>Max Bullish (100)</span>
+                    </div>
+                  </div>
+                  <Button onClick={handleInjectNews} className="w-full">
+                    Inject News
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-black border border-white/10 text-white">
+                <CardHeader>
+                  <CardTitle>Live System Terminal</CardTitle>
+                </CardHeader>
+                <CardContent className="h-[400px] overflow-y-auto rounded-md bg-slate-950/90 p-4 font-mono text-sm text-slate-200">
+                  {tradeLog.length === 0 ? (
+                    <p className="text-muted-foreground">
+                      Waiting for trade execution events...
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {tradeLog.map((line, index) => (
+                        <div key={index} className="whitespace-pre-wrap">
+                          {line}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </div>
-        ) : null}
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card className="bg-secondary border-border">
+              <CardHeader>
+                <CardTitle>Top Assets</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {(stats?.topAssetsByVolume || []).map((asset: any) => (
+                    <button
+                      key={asset.assetId}
+                      type="button"
+                      onClick={() => setSelectedAsset(asset.assetId)}
+                      className="flex w-full items-center justify-between rounded-md border border-border bg-background/80 px-4 py-3 text-left hover:border-primary hover:bg-primary/5"
+                    >
+                      <div>
+                        <div className="font-medium">{asset.assetId}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Volume: {formatMoney(Number(asset.volume))}
+                        </div>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Select
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-secondary border-border">
+              <CardHeader>
+                <CardTitle>Agent Leaderboard</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-sm text-muted-foreground">
+                    <thead>
+                      <tr>
+                        <th className="px-4 py-3">Rank</th>
+                        <th className="px-4 py-3">Agent</th>
+                        <th className="px-4 py-3">Cash</th>
+                        <th className="px-4 py-3">Portfolio</th>
+                        <th className="px-4 py-3">Net worth</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.isArray(leaderboard) &&
+                        leaderboard.map((agent: any, index: number) => (
+                          <tr
+                            key={agent.userId}
+                            className="cursor-pointer border-t border-border hover:bg-primary/5"
+                            onClick={() => setSelectedAgent(agent)}
+                          >
+                            <td className="px-4 py-3">{index + 1}</td>
+                            <td className="px-4 py-3 font-medium text-foreground">
+                              {agent.name}
+                            </td>
+                            <td className="px-4 py-3">
+                              {formatMoney(Number(agent.cash) || 0)}
+                            </td>
+                            <td className="px-4 py-3">
+                              {formatMoney(Number(agent.portfolioValue) || 0)}
+                            </td>
+                            <td className="px-4 py-3">
+                              {formatMoney(Number(agent.netWorth) || 0)}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {selectedAgent ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
+              <div className="w-full max-w-4xl space-y-6 rounded-md bg-secondary border border-border p-6 shadow-2xl">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-semibold">
+                      Agent Profile: {selectedAgent.name}
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Liquid cash, portfolio exposure, and recent trade
+                      activity.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedAgent(null)}
+                  >
+                    Close
+                  </Button>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Card className="bg-background border-border">
+                    <CardHeader>
+                      <CardTitle>Net Worth</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-3xl font-semibold">
+                        {formatMoney(Number(selectedAgent.netWorth) || 0)}
+                      </p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Liquid Cash:{" "}
+                        {formatMoney(Number(selectedAgent.cash) || 0)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-background border-border">
+                    <CardHeader>
+                      <CardTitle>Portfolio Value</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-3xl font-semibold">
+                        {formatMoney(Number(selectedAgent.portfolioValue) || 0)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <Card className="bg-background border-border">
+                    <CardHeader>
+                      <CardTitle>Latest Trades</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {selectedAgentTrades.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          No recent trades found yet.
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          {selectedAgentTrades.map((trade: any) => (
+                            <div
+                              key={trade.id}
+                              className="rounded-md bg-muted p-3"
+                            >
+                              <div className="flex items-center justify-between text-sm font-medium">
+                                <span>{trade.asset_id}</span>
+                                <span>
+                                  {trade.timestamp
+                                    ? new Date(trade.timestamp).toLocaleString()
+                                    : "N/A"}
+                                </span>
+                              </div>
+                              <div className="mt-2 text-sm text-muted-foreground">
+                                {trade.buyer_id === selectedAgent.userId
+                                  ? "Bought"
+                                  : "Sold"}{" "}
+                                {trade.quantity} @{" "}
+                                {formatMoney(Number(trade.price))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-background border-border">
+                    <CardHeader>
+                      <CardTitle>Holdings Insight</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">
+                        This profile is derived from the leaderboard snapshot
+                        and recent trade history.
+                      </p>
+                      <div className="mt-4 rounded-md bg-muted p-4 text-sm">
+                        <p>
+                          Cash: {formatMoney(Number(selectedAgent.cash) || 0)}
+                        </p>
+                        <p className="mt-2">
+                          Portfolio:{" "}
+                          {formatMoney(
+                            Number(selectedAgent.portfolioValue) || 0,
+                          )}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

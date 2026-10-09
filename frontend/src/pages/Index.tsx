@@ -1,16 +1,32 @@
-import { useState } from "react";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { useSearchParams } from "react-router-dom";
+import { lazy, Suspense, useState, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { Explore } from "@/pages/Explore";
 import { Portfolio } from "@/pages/Portfolio";
-import { Trending } from "@/pages/Trending";
-import { StockDetail } from "@/pages/StockDetail";
+const StockDetail = lazy(() =>
+  import("@/pages/StockDetail").then((m) => ({ default: m.StockDetail })),
+);
 import Approvals from "@/pages/Approvals";
-import { Research } from "@/pages/Research";
+const Research = lazy(() =>
+  import("@/pages/Research").then((m) => ({ default: m.Research })),
+);
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState("research");
+  const [params, setParams] = useSearchParams();
+  const activeTab = params.get("tab") || "research";
+  const setActiveTab = (tab: string) => {
+    setViewMode("main");
+    setSelectedStock(null);
+    setParams({ tab });
+  };
   const [selectedStock, setSelectedStock] = useState(null);
   const [viewMode, setViewMode] = useState<"main" | "stock">("main");
+
+  useEffect(() => {
+    setViewMode("main");
+    setSelectedStock(null);
+  }, [activeTab]);
 
   const handleStockClick = (stock: any) => {
     setSelectedStock(stock);
@@ -35,9 +51,13 @@ const Index = () => {
       case "portfolio":
         return <Portfolio />;
       case "trending":
-        return <Trending onStockClick={handleStockClick} />;
+        return <Explore onStockClick={handleStockClick} />;
       case "approvals":
-        return <Approvals />;
+        return (
+          <ProtectedRoute requiredRole="admin">
+            <Approvals />
+          </ProtectedRoute>
+        );
       default:
         return <Explore onStockClick={handleStockClick} />;
     }
@@ -46,7 +66,15 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background dark">
       <Layout activeTab={activeTab} onTabChange={setActiveTab}>
-        {renderContent()}
+        <Suspense
+          fallback={
+            <p className="workspace text-muted-foreground">
+              Loading workspace�
+            </p>
+          }
+        >
+          {renderContent()}
+        </Suspense>
       </Layout>
     </div>
   );

@@ -37,8 +37,15 @@ export const Portfolio = () => {
   }, [user?.id]);
   if (!user)
     return (
-      <div className="container p-6">
-        Sign in to view your account and orders.
+      <div className="workspace">
+        <p className="eyebrow">Your account</p>
+        <h1 className="text-3xl font-semibold">Portfolio</h1>
+        <div className="terminal-panel p-8">
+          <p className="font-medium">Track your capital and positions.</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Sign in to view your account and orders.
+          </p>
+        </div>
       </div>
     );
   const positions = account?.positions || [],
@@ -54,8 +61,14 @@ export const Portfolio = () => {
       maximumFractionDigits: 6,
     });
   return (
-    <div className="container p-6 space-y-6">
-      <h1 className="text-3xl font-bold">Portfolio</h1>
+    <div className="workspace">
+      <header>
+        <p className="eyebrow mb-2">Shared exchange / Your account</p>
+        <h1 className="text-3xl font-semibold">Portfolio</h1>
+        <p className="text-sm text-muted-foreground mt-2">
+          Capital, positions and execution history.
+        </p>
+      </header>
       {error && (
         <p role="alert" className="text-destructive">
           {error}
@@ -64,17 +77,20 @@ export const Portfolio = () => {
       {!account && !error && <p>Loading account…</p>}
       {account && (
         <>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[
               ["Account equity", free + reserved + holdings],
+              ["Position value", holdings],
               ["Available cash", free],
               ["Reserved cash", reserved],
             ].map(([label, value]) => (
               <Card key={String(label)}>
                 <CardHeader>
-                  <CardTitle>{label}</CardTitle>
+                  <CardTitle className="eyebrow">{label}</CardTitle>
                 </CardHeader>
-                <CardContent>${money(Number(value))}</CardContent>
+                <CardContent className="metric-value">
+                  ${money(Number(value))}
+                </CardContent>
               </Card>
             ))}
           </div>
@@ -103,8 +119,24 @@ export const Portfolio = () => {
                       <td>{p.reservedQuantity}</td>
                       <td>{money(Number(p.averageBuyPrice))}</td>
                       <td>{money(Number(p.currentValue))}</td>
-                      <td>{money(Number(p.profitLoss))}</td>
-                      <td>{money(Number(p.realizedPnl))}</td>
+                      <td
+                        className={
+                          Number(p.profitLoss) >= 0
+                            ? "text-success"
+                            : "text-danger"
+                        }
+                      >
+                        {money(Number(p.profitLoss))}
+                      </td>
+                      <td
+                        className={
+                          Number(p.realizedPnl) >= 0
+                            ? "text-success"
+                            : "text-danger"
+                        }
+                      >
+                        {money(Number(p.realizedPnl))}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

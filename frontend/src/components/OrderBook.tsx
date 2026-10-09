@@ -32,7 +32,7 @@ export function OrderBook({ assetId }: { assetId: string }) {
       clearInterval(timer);
     };
   }, [assetId, user?.id]);
-  if (!user) return null;
+  if (!user) return <Card><CardHeader><CardTitle>Order book</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground">Sign in to inspect bids and asks.</CardContent></Card>;
   return (
     <Card>
       <CardHeader>
@@ -44,7 +44,7 @@ export function OrderBook({ assetId }: { assetId: string }) {
             {error}
           </p>
         )}
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid sm:grid-cols-2 gap-6">
           {(["buys", "sells"] as const).map((side) => (
             <div key={side}>
               <h3 className="font-medium">
@@ -60,7 +60,7 @@ export function OrderBook({ assetId }: { assetId: string }) {
                 <tbody>
                   {snapshot?.book[side].slice(0, 10).map((level: any) => (
                     <tr key={level.price}>
-                      <td>{level.price}</td>
+                      <td className={side === "buys" ? "text-success font-mono" : "text-danger font-mono"}>{level.price}</td>
                       <td className="text-right">{level.quantity}</td>
                     </tr>
                   ))}

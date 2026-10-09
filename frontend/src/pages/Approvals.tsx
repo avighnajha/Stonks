@@ -121,7 +121,11 @@ export const Approvals = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="workspace">
+      <header>
+        <p className="eyebrow mb-2">Operations / Catalogue</p>
+        <h1 className="text-3xl font-semibold">Asset approvals</h1>
+      </header>
       <Card className="bg-gradient-card border-border">
         <CardHeader>
           <CardTitle>Pending Listings</CardTitle>

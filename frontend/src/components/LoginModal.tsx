@@ -67,7 +67,7 @@ export const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
     try {
       await register(registerData.name, registerData.email, registerData.password);
       toast({
-        title: "Welcome to InvestPeople!",
+        title: "Welcome to Stonks!",
         description: "Account created successfully",
       });
       onOpenChange(false);
@@ -89,7 +89,7 @@ export const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <LogIn className="h-5 w-5 text-primary" />
-            <span>Join InvestPeople</span>
+            <span>Join Stonks</span>
           </DialogTitle>
         </DialogHeader>
 

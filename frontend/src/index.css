@@ -2,103 +2,123 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
-  :root {
-    /* Trading Platform Dark Theme */
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-
-    /* Electric Blue Primary */
-    --primary: 217 91% 60%;
-    --primary-foreground: 240 10% 3.9%;
-
-    /* Dark Cards */
-    --secondary: 240 4% 16%;
-    --secondary-foreground: 0 0% 98%;
-
-    --muted: 240 4% 16%;
-    --muted-foreground: 240 5% 65%;
-
-    --accent: 240 4% 16%;
-    --accent-foreground: 0 0% 98%;
-
-    /* Trading Colors */
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 98%;
-    
-    --danger: 0 84% 60%;
-    --danger-foreground: 0 0% 98%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 240 4% 16%;
-    --input: 240 4% 16%;
-    --ring: 217 91% 60%;
-
-    --radius: 0.75rem;
-
-    /* Premium Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(142 76% 36%));
-    --gradient-card: linear-gradient(145deg, hsl(240 4% 16%), hsl(240 6% 10%));
-    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 46%));
-    --gradient-danger: linear-gradient(135deg, hsl(0 84% 60%), hsl(0 84% 70%));
-
-    /* Shadows */
-    --shadow-glow: 0 0 40px hsl(217 91% 60% / 0.3);
-    --shadow-card: 0 10px 30px -10px hsl(240 10% 3.9% / 0.3);
-    
-    /* Animations */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
+  :root,
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-
-    --primary: 217 91% 60%;
-    --primary-foreground: 240 10% 3.9%;
-
-    --secondary: 240 4% 16%;
-    --secondary-foreground: 0 0% 98%;
-
-    --muted: 240 4% 16%;
-    --muted-foreground: 240 5% 65%;
-
-    --accent: 240 4% 16%;
-    --accent-foreground: 0 0% 98%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 240 4% 16%;
-    --input: 240 4% 16%;
-    --ring: 217 91% 60%;
+    color-scheme: dark;
+    --background: 240 6% 7%;
+    --foreground: 240 5% 94%;
+    --card: 240 6% 10%;
+    --card-foreground: 240 5% 94%;
+    --popover: 240 6% 11%;
+    --popover-foreground: 240 5% 94%;
+    --primary: 240 6% 88%;
+    --primary-foreground: 240 6% 9%;
+    --secondary: 240 5% 14%;
+    --secondary-foreground: 240 5% 94%;
+    --muted: 240 5% 14%;
+    --muted-foreground: 240 4% 63%;
+    --accent: 240 5% 18%;
+    --accent-foreground: 240 5% 96%;
+    --success: 150 52% 55%;
+    --success-foreground: 240 6% 9%;
+    --danger: 0 72% 67%;
+    --danger-foreground: 240 6% 9%;
+    --destructive: 0 72% 67%;
+    --destructive-foreground: 240 6% 9%;
+    --border: 240 5% 20%;
+    --input: 240 5% 23%;
+    --ring: 240 6% 75%;
+    --radius: 0.375rem;
+    --gradient-primary: linear-gradient(
+      hsl(var(--primary)),
+      hsl(var(--primary))
+    );
+    --gradient-card: linear-gradient(hsl(var(--card)), hsl(var(--card)));
+    --gradient-success: linear-gradient(
+      hsl(var(--success)),
+      hsl(var(--success))
+    );
+    --gradient-danger: linear-gradient(hsl(var(--danger)), hsl(var(--danger)));
+    --shadow-glow: none;
+    --shadow-card: none;
   }
-}
-
-@layer base {
   * {
     @apply border-border;
   }
-
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+  button {
+    touch-action: manipulation;
+  }
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
+  }
+  ::selection {
+    background: #dddde4;
+    color: #17171a;
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.025em;
+  }
+  table th {
+    @apply text-muted-foreground font-medium;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+  table th,
+  table td {
+    padding: 0.8rem 0.65rem;
+    white-space: nowrap;
+  }
+  table tbody tr {
+    border-top: 1px solid hsl(var(--border));
+  }
+  table tbody tr:hover {
+    background: hsl(var(--accent) / 0.35);
+  }
+  select {
+    background-color: hsl(var(--background));
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+@layer components {
+  .eyebrow {
+    @apply text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-medium;
+  }
+  .workspace {
+    @apply mx-auto w-full max-w-[1600px] p-4 md:p-7 space-y-6;
+  }
+  .terminal-panel {
+    @apply rounded-md border border-border bg-card;
+  }
+  .metric-value {
+    @apply text-2xl font-medium tracking-tight;
+  }
+  .nav-item {
+    @apply flex items-center gap-3 rounded-sm px-3 py-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground;
+  }
+  .nav-item[aria-current="page"] {
+    @apply bg-accent text-foreground;
+    box-shadow: inset 2px 0 hsl(var(--primary));
   }
 }
