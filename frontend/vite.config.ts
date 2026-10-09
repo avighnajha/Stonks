@@ -5,6 +5,8 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Keep production bundles separate from the exchange's /assets API.
+  build: { assetsDir: "_static" },
   server: {
     host: "::",
     port: 5173,

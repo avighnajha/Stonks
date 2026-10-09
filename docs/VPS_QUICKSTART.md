@@ -1,8 +1,9 @@
 # First VPS test run
 
 This is a private smoke test using an SSH tunnel. Public HTTPS hosting comes later.
-Use Docker Engine with a recent Compose v2 (additional build contexts required)
-and Node 22/npm for the frontend. Commands below run on Ubuntu unless stated.
+Use Docker Engine with a recent Compose v2 (additional build contexts required).
+The frontend builds with Node 22 inside Docker; no host Node installation is needed.
+Commands below run on Ubuntu unless stated.
 
 ## Update the checkouts
 
@@ -59,16 +60,21 @@ docker compose -f docker-compose.yml -f docker-compose.research.yml exec researc
 
 ## Start the frontend and open a tunnel
 
-In another VPS terminal, from Stonks:
+From Stonks, add the frontend overlay. It serves compiled files with Nginx and
+proxies API/WebSocket requests to the gateway. It restarts automatically, including
+after a reboot when Docker starts:
 
 ```sh
-cd frontend
-npm ci
-VITE_API_URL='' npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
+sudo docker compose -f docker-compose.yml -f docker-compose.research.yml -f docker-compose.frontend.yml up -d --build frontend
+python3 deploy/check_frontend.py
 ```
 
-Leave this running for the test. This development server proxies API/WebSocket
-requests to the local gateway. Do not expose Vite as a public production server.
+The frontend binds only VPS loopback port 5173. No frontend secrets or environment
+file are needed: API requests use the same browser origin. Compiled bundles use
+`/_static/` so the exchange's `/assets` API remains available. To rebuild after
+updating source, repeat the command above. Run `logs --tail=80 frontend` with the
+same three Compose files to inspect it. For active development, Vite is still
+available via `npm run dev` locally with Node 22.
 
 On your laptop, keep an SSH tunnel running (substitute your key path and VPS IP):
 
@@ -106,6 +112,6 @@ Reload Research; the strategy should appear in the group selector. The worker
 contains a copy of the Python checkout, so source edits need a worker rebuild.
 No strategy upload or arbitrary code execution is exposed through the website.
 
-Stop with `docker compose -f docker-compose.yml -f docker-compose.research.yml down`.
+Stop the full stack with `sudo docker compose -f docker-compose.yml -f docker-compose.research.yml -f docker-compose.frontend.yml down`.
 Do not add `-v` unless you intend to erase database volumes. Production reverse
 proxy/TLS, backups and capacity checks are separate from this first test.
