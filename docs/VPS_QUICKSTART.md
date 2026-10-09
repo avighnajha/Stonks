@@ -93,6 +93,9 @@ private experiment assets do not.
 
 ## Your Python strategies
 
+For public HTTPS access, see [HTTPS deployment](HTTPS.md); the SSH tunnel can
+remain available for private troubleshooting.
+
 Start with [the SDK guide](https://github.com/avighnajha/stonks-simulation/blob/main/docs/STRATEGY_GUIDE.md).
 After adding a module to that checkout, add these root `.env` entries, using your names:
 

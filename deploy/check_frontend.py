@@ -4,6 +4,7 @@ import json
 import os
 import re
 import socket
+import ssl
 import sys
 import urllib.error
 import urllib.parse
@@ -42,9 +43,12 @@ json.loads(body)
 
 # Exercise a real WebSocket upgrade through Nginx, without joining an auth namespace.
 url = urllib.parse.urlsplit(base)
-assert url.scheme == "http", "This local deployment check expects HTTP"
+assert url.scheme in ("http", "https")
 key = base64.b64encode(os.urandom(16)).decode()
-with socket.create_connection((url.hostname, url.port or 80), timeout=15) as connection:
+connection = socket.create_connection((url.hostname, url.port or (443 if url.scheme == "https" else 80)), timeout=15)
+if url.scheme == "https":
+    connection = ssl.create_default_context().wrap_socket(connection, server_hostname=url.hostname)
+with connection:
     request = (
         "GET /socket.io/?EIO=4&transport=websocket HTTP/1.1\r\n"
         f"Host: {url.netloc}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
