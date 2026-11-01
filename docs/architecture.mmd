@@ -1,0 +1,56 @@
+flowchart TB
+    accTitle: Stonks system architecture
+    accDescr: Browser, Caddy HTTPS, Nginx frontend, all six NestJS services, shared PostgreSQL, Redis and Socket.IO, plus the Python research worker and isolated simulation databases.
+    browser["Browser / React<br/>Market · Portfolio · Research · Operations"]
+
+    subgraph host["VPS / Docker Compose"]
+        caddy["Caddy :80/:443<br/>HTTPS / certificates"]
+        nginx["frontend / Nginx<br/>React files + API / Socket.IO proxy"]
+        gateway["api_gateway :8080<br/>HTTP routing / JWT / admin authorization<br/>Socket.IO /market connections"]
+
+        users["user_service :3001<br/>Accounts / login / initial endowment"]
+        wallets["wallet_service :3002<br/>Wallet queries"]
+        catalogue["marketplace_service :3003<br/>Asset catalogue / approvals"]
+        trading["trading_service :3004<br/>Matching / atomic settlement / ledger<br/>Market data / research APIs / run queue"]
+        portfolio["portfolio_service :3005<br/>Holdings / portfolio queries"]
+        main[("postgres_db<br/>Shared live PostgreSQL<br/>Trading state / ledger / events / command results<br/>Experiments / run queue / progress / results")]
+        outbox["Outbox publisher<br/>Inside trading_service / every 500 ms"]
+        redis[("Redis Pub/Sub<br/>EXCHANGE_EVENTS channel")]
+
+        subgraph research_runtime["research_worker / stonks-simulation repository"]
+            scheduler["Python scheduler + SDK strategies<br/>Logical clock / one instance per agent"]
+            adapter["Node adapter child process<br/>Same exchange engine implementation"]
+        end
+        research[("research_db<br/>Dedicated PostgreSQL server<br/>Isolated database + restricted role per run")]
+    end
+
+    browser <-->|"HTTPS / WSS"| caddy
+    caddy <--> nginx
+    nginx <-->|"REST / Socket.IO"| gateway
+    gateway -->|"/auth"| users
+    gateway -->|"/wallet"| wallets
+    gateway -->|"/assets"| catalogue
+    gateway -->|"/trade /research /admin"| trading
+    gateway -->|"/portfolio"| portfolio
+    users --> main
+    wallets -->|"Read"| main
+    catalogue --> main
+    portfolio -->|"Read"| main
+    catalogue -.->|"HTTP issuance"| trading
+    trading -->|"SQL / transactions"| main
+    main -->|"Committed events"| outbox
+    outbox -->|"Publish"| redis
+    redis -->|"Live events"| gateway
+    trading <-->|"Private HTTP: claim / progress / results"| scheduler
+    scheduler <-->|"JSON lines"| adapter
+    scheduler -->|"Provision / cleanup"| research
+    adapter <-->|"Isolated SQL"| research
+
+    classDef edge fill:#f4f4f5,stroke:#71717a,color:#18181b
+    classDef service fill:#fff,stroke:#a1a1aa,color:#18181b
+    classDef store fill:#eef2ff,stroke:#818cf8,color:#18181b
+    classDef simulation fill:#f5f3ff,stroke:#a78bfa,color:#18181b
+    class browser,caddy,nginx edge
+    class gateway,users,wallets,catalogue,trading,portfolio,outbox service
+    class main,redis,research store
+    class scheduler,adapter simulation
