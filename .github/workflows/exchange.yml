@@ -2,7 +2,9 @@ name: Exchange checks
 on: [push, pull_request]
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    # Keep the OS compatible with the Playwright version in frontend/package-lock.json.
+    # ubuntu-latest now selects 26.04, which Playwright 1.56.1 does not support.
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:14-alpine

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>Stonks</title>
+  <rect x="0.5" y="0.5" width="31" height="31" rx="5.5" fill="#111113" stroke="#303034"/>
+  <path d="m6 22 7-7 5 5 8-10m-7 0h7v7" fill="none" stroke="#e4e4e7" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
