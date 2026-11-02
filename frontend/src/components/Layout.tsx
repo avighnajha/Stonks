@@ -100,9 +100,6 @@ export const Layout = ({ children, activeTab, onTabChange }: LayoutProps) => {
         <div className="mt-auto border-t p-5 space-y-4">
           <div className="eyebrow">Simulated exchange</div>
           {account}
-          <p className="text-xs text-muted-foreground">
-            Trade. Experiment. Understand.
-          </p>
         </div>
       </aside>
       <div className="md:pl-52 min-w-0">
@@ -118,9 +115,6 @@ export const Layout = ({ children, activeTab, onTabChange }: LayoutProps) => {
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden sm:inline eyebrow">
-              Research & exchange
-            </span>
             {admin && (
               <Link to="/admin" className="md:hidden text-xs underline">
                 Operations

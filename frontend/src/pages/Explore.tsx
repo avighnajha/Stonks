@@ -92,9 +92,6 @@ export const Explore = ({
         <div>
           <p className="eyebrow mb-2">Shared exchange / Real time</p>
           <h1 className="text-3xl font-semibold">Market</h1>
-          <p className="text-sm text-muted-foreground mt-2">
-            Explore assets, inspect liquidity and participate in the market.
-          </p>
         </div>
         <span className="text-xs text-muted-foreground">
           {updated
@@ -171,7 +168,7 @@ export const Explore = ({
             <p className="font-medium">
               {assets.length
                 ? "No matching assets"
-                : "The market is ready for its first listing"}
+                : "No listed assets"}
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
               {assets.length

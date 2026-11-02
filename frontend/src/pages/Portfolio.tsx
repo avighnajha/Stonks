@@ -41,8 +41,7 @@ export const Portfolio = () => {
         <p className="eyebrow">Your account</p>
         <h1 className="text-3xl font-semibold">Portfolio</h1>
         <div className="terminal-panel p-8">
-          <p className="font-medium">Track your capital and positions.</p>
-          <p className="text-sm text-muted-foreground mt-2">
+          <p className="text-sm text-muted-foreground">
             Sign in to view your account and orders.
           </p>
         </div>
@@ -65,9 +64,6 @@ export const Portfolio = () => {
       <header>
         <p className="eyebrow mb-2">Shared exchange / Your account</p>
         <h1 className="text-3xl font-semibold">Portfolio</h1>
-        <p className="text-sm text-muted-foreground mt-2">
-          Capital, positions and execution history.
-        </p>
       </header>
       {error && (
         <p role="alert" className="text-destructive">

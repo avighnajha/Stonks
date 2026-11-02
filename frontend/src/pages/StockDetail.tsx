@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -391,10 +390,9 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
 
           <div className="terminal-panel p-5">
             <p className="eyebrow mb-2">About this asset</p>
-            <p className="text-sm text-muted-foreground">
-              {stock.description ||
-                "An approved asset on the shared simulated exchange."}
-            </p>
+            {stock.description && (
+              <p className="text-sm text-muted-foreground">{stock.description}</p>
+            )}
             <p className="mt-3 text-xs text-muted-foreground">
               Marked capitalization: {formattedMarketCap}
             </p>
@@ -404,9 +402,6 @@ export const StockDetail = ({ stock, onBack }: StockDetailProps) => {
         <Card className="bg-gradient-card border-border">
           <CardHeader>
             <CardTitle>Trade {stock.name}</CardTitle>
-            <CardDescription>
-              Buy or sell shares in this investment
-            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex space-x-2">

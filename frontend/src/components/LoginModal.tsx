@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LogIn, UserPlus, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -36,8 +36,7 @@ export const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
     try {
       await login(loginData.email, loginData.password);
       toast({
-        title: "Welcome back!",
-        description: "Successfully logged in",
+        title: "Signed in",
       });
       onOpenChange(false);
       setLoginData({ email: '', password: '' });
@@ -67,8 +66,7 @@ export const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
     try {
       await register(registerData.name, registerData.email, registerData.password);
       toast({
-        title: "Welcome to Stonks!",
-        description: "Account created successfully",
+        title: "Account created",
       });
       onOpenChange(false);
       setRegisterData({ name: '', email: '', password: '' });
@@ -89,7 +87,7 @@ export const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <LogIn className="h-5 w-5 text-primary" />
-            <span>Join Stonks</span>
+            <span>Account</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -102,8 +100,7 @@ export const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
           <TabsContent value="login">
             <Card className="bg-gradient-card border-border">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Welcome Back</CardTitle>
-                <CardDescription>Sign in to your account</CardDescription>
+                <CardTitle className="text-lg">Sign in</CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleLogin} className="space-y-4">
@@ -157,7 +154,6 @@ export const LoginModal = ({ open, onOpenChange }: LoginModalProps) => {
             <Card className="bg-gradient-card border-border">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Create Account</CardTitle>
-                <CardDescription>Join the investment revolution</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleRegister} className="space-y-4">

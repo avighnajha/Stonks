@@ -335,10 +335,6 @@ const GodDashboard = () => {
                     Shared exchange
                   </p>
                   <h1 className="mt-2 text-3xl font-semibold">Operations</h1>
-                  <p className="mt-2 text-sm text-muted-foreground max-w-2xl">
-                    Monitor trader performance, order book health, and live
-                    execution events across the exchange.
-                  </p>
                 </div>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -713,10 +709,6 @@ const GodDashboard = () => {
                     <h2 className="text-2xl font-semibold">
                       Agent Profile: {selectedAgent.name}
                     </h2>
-                    <p className="text-sm text-muted-foreground">
-                      Liquid cash, portfolio exposure, and recent trade
-                      activity.
-                    </p>
                   </div>
                   <Button
                     variant="outline"

@@ -383,26 +383,13 @@ export function Research() {
   if (!user)
     return (
       <div className="container py-16 max-w-4xl">
-        <h1 className="text-4xl font-semibold">Your market research lab</h1>
+        <h1 className="text-4xl font-semibold">Research</h1>
         <p className="mt-4 text-muted-foreground">
-          Create isolated experiments, configure Python agents and compare
-          repeatable runs. Sign in to keep your experiments private.
+          Sign in to create private experiments and compare runs. Each
+          experiment uses an isolated market.
         </p>
-        <div className="grid sm:grid-cols-3 gap-4 mt-10">
-          {[
-            ["01", "Design a market"],
-            ["02", "Run Python agents"],
-            ["03", "Compare the evidence"],
-          ].map(([n, t]) => (
-            <div className="terminal-panel p-5" key={n}>
-              <p className="eyebrow mb-6">{n} / Research</p>
-              <h2 className="font-medium">{t}</h2>
-            </div>
-          ))}
-        </div>
         <p className="mt-6 text-sm text-muted-foreground">
-          Use Login to open your private workspace. The shared market is
-          available in the Market tab.
+          The shared exchange is available in the Market tab.
         </p>
       </div>
     );
@@ -414,9 +401,6 @@ export function Research() {
             Stonks Research
           </p>
           <h1 className="text-3xl font-semibold mt-1">My experiments</h1>
-          <p className="text-muted-foreground mt-2">
-            Private, controlled runs. Independent books. Python strategies.
-          </p>
         </div>
         <button
           className={button}
@@ -481,14 +465,11 @@ export function Research() {
           </div>
           <section className="terminal-panel overflow-hidden">
             <div className="p-5 border-b">
-              <h2 className="font-semibold">Personal research</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Your questions, configurations and repeatable runs.
-              </p>
+              <h2 className="font-semibold">Saved experiments</h2>
             </div>
             {!experiments.length ? (
               <div className="p-8 md:p-12">
-                <p className="text-xl font-medium">Start with a question.</p>
+                <p className="text-xl font-medium">No saved experiments</p>
                 <p className="text-muted-foreground text-sm mt-2 max-w-xl">
                   Choose assets, assemble a population and vary one property.
                   Compare repeated seeds to see whether the effect persists.
@@ -541,27 +522,6 @@ export function Research() {
               </div>
             )}
           </section>
-          <div className="grid md:grid-cols-3 gap-4">
-            {[
-              [
-                "01 / Configure",
-                "Set assets, economic factors, agents and scheduled information.",
-              ],
-              [
-                "02 / Run",
-                "Each simulation has independent books and advances in logical time.",
-              ],
-              [
-                "03 / Compare",
-                "Inspect spreads, price discovery and cohort P&L across repeated seeds.",
-              ],
-            ].map(([title, body]) => (
-              <div className="p-5 border-t" key={title}>
-                <h3 className="text-sm font-medium">{title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{body}</p>
-              </div>
-            ))}
-          </div>
           <p className="text-xs text-muted-foreground">
             Shows up to 100 saved experiments and the 200 most recent runs.
           </p>

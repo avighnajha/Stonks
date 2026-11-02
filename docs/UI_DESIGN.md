@@ -12,6 +12,8 @@ Implemented across the shared exchange and personal research workspace:
 
 Chart-heavy workspaces are loaded on demand. The bundle path stays `/_static` to avoid the `/assets` API namespace.
 
+Interface copy should explain behaviour, define data or help users act. Keep guidance about isolated markets, timing, price protection and metric limitations; avoid slogans and descriptions that repeat a heading or visible controls.
+
 ## Verification
 
 The research regression passed against the original UI before the layout refactor. It then passed with the new overview entry point. Market tests exercise search/sorting, candle timestamps, limit-order payloads and idempotency headers, cancellation, stale-data warnings, navigation out of asset details, retained setup input and mobile width.

@@ -146,9 +146,9 @@ export const ProfileModal = ({
           {!showIPOForm ? (
             <Card className="bg-gradient-card border-border">
               <CardHeader>
-                <CardTitle className="text-lg">Issue Listing</CardTitle>
+                <CardTitle className="text-lg">Asset listing</CardTitle>
                 <CardDescription>
-                  Create a new market idea for others to invest in
+                  Listings require approval before trading.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -165,9 +165,6 @@ export const ProfileModal = ({
             <Card className="bg-gradient-card border-border">
               <CardHeader>
                 <CardTitle className="text-lg">Submit Listing</CardTitle>
-                <CardDescription>
-                  Fill out the details for your listing
-                </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleIPOSubmit} className="space-y-4">
@@ -200,7 +197,7 @@ export const ProfileModal = ({
                     />
                   </div>
                   <div>
-                    <Label htmlFor="image">Image Link</Label>
+                    <Label htmlFor="image">Image URL *</Label>
                     <Input
                       id="image"
                       type="url"
@@ -208,13 +205,9 @@ export const ProfileModal = ({
                       onChange={(e) =>
                         setFormData({ ...formData, imageLink: e.target.value })
                       }
-                      placeholder="https://example.com/image.jpg (recommended)"
+                      placeholder="https://example.com/image.jpg"
                       className="bg-background border-border"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Image URL is recommended to help people identify your
-                      listing, but it is optional.
-                    </p>
                   </div>
                   <div className="flex space-x-2">
                     <Button
