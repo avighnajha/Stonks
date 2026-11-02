@@ -1,0 +1,487 @@
+{
+  "version": 1,
+  "totalSupply": "10000.0000",
+  "creatorPercentage": "0.00",
+  "assets": [
+    {
+      "key": "01",
+      "name": "Cole Palmer",
+      "description": "English footballer.",
+      "sector": "Sports",
+      "subsector": "Football",
+      "initialPrice": "80.00"
+    },
+    {
+      "key": "02",
+      "name": "Lamine Yamal",
+      "description": "Spanish footballer.",
+      "sector": "Sports",
+      "subsector": "Football",
+      "initialPrice": "100.00"
+    },
+    {
+      "key": "03",
+      "name": "Bukayo Saka",
+      "description": "English footballer.",
+      "sector": "Sports",
+      "subsector": "Football",
+      "initialPrice": "95.00"
+    },
+    {
+      "key": "04",
+      "name": "Jude Bellingham",
+      "description": "English footballer.",
+      "sector": "Sports",
+      "subsector": "Football",
+      "initialPrice": "110.00"
+    },
+    {
+      "key": "05",
+      "name": "Kylian Mbappé",
+      "description": "French footballer.",
+      "sector": "Sports",
+      "subsector": "Football",
+      "initialPrice": "150.00"
+    },
+    {
+      "key": "06",
+      "name": "Aitana Bonmatí",
+      "description": "Spanish footballer.",
+      "sector": "Sports",
+      "subsector": "Football",
+      "initialPrice": "90.00"
+    },
+    {
+      "key": "07",
+      "name": "Lando Norris",
+      "description": "British racing driver.",
+      "sector": "Sports",
+      "subsector": "Motorsport",
+      "initialPrice": "110.00"
+    },
+    {
+      "key": "08",
+      "name": "Oscar Piastri",
+      "description": "Australian racing driver.",
+      "sector": "Sports",
+      "subsector": "Motorsport",
+      "initialPrice": "95.00"
+    },
+    {
+      "key": "09",
+      "name": "Carlos Alcaraz",
+      "description": "Spanish tennis player.",
+      "sector": "Sports",
+      "subsector": "Tennis",
+      "initialPrice": "125.00"
+    },
+    {
+      "key": "10",
+      "name": "Iga Świątek",
+      "description": "Polish tennis player.",
+      "sector": "Sports",
+      "subsector": "Tennis",
+      "initialPrice": "120.00"
+    },
+    {
+      "key": "11",
+      "name": "Jasprit Bumrah",
+      "description": "Indian cricketer.",
+      "sector": "Sports",
+      "subsector": "Cricket",
+      "initialPrice": "100.00"
+    },
+    {
+      "key": "12",
+      "name": "Smriti Mandhana",
+      "description": "Indian cricketer.",
+      "sector": "Sports",
+      "subsector": "Cricket",
+      "initialPrice": "85.00"
+    },
+    {
+      "key": "13",
+      "name": "Olivia Dean",
+      "description": "English singer and songwriter.",
+      "sector": "Music",
+      "subsector": "Soul / R&B",
+      "initialPrice": "65.00"
+    },
+    {
+      "key": "14",
+      "name": "RAYE",
+      "description": "British singer and songwriter.",
+      "sector": "Music",
+      "subsector": "Soul / R&B",
+      "initialPrice": "80.00"
+    },
+    {
+      "key": "15",
+      "name": "Sampha",
+      "description": "British singer, songwriter and producer.",
+      "sector": "Music",
+      "subsector": "Soul / R&B",
+      "initialPrice": "55.00"
+    },
+    {
+      "key": "16",
+      "name": "Little Simz",
+      "description": "British rapper and actor.",
+      "sector": "Music",
+      "subsector": "Rap",
+      "initialPrice": "70.00"
+    },
+    {
+      "key": "17",
+      "name": "Dave",
+      "description": "British rapper and producer.",
+      "sector": "Music",
+      "subsector": "Rap",
+      "initialPrice": "75.00"
+    },
+    {
+      "key": "18",
+      "name": "Doechii",
+      "description": "American rapper and singer.",
+      "sector": "Music",
+      "subsector": "Rap",
+      "initialPrice": "70.00"
+    },
+    {
+      "key": "19",
+      "name": "PinkPantheress",
+      "description": "English singer, songwriter and producer.",
+      "sector": "Music",
+      "subsector": "Pop / electronic",
+      "initialPrice": "60.00"
+    },
+    {
+      "key": "20",
+      "name": "Fred again..",
+      "description": "British producer and DJ.",
+      "sector": "Music",
+      "subsector": "Electronic",
+      "initialPrice": "95.00"
+    },
+    {
+      "key": "21",
+      "name": "Barry Can't Swim",
+      "description": "Scottish producer and DJ.",
+      "sector": "Music",
+      "subsector": "Electronic",
+      "initialPrice": "60.00"
+    },
+    {
+      "key": "22",
+      "name": "Nia Archives",
+      "description": "British producer, DJ and singer.",
+      "sector": "Music",
+      "subsector": "Electronic",
+      "initialPrice": "45.00"
+    },
+    {
+      "key": "23",
+      "name": "Jordan Rakei",
+      "description": "New Zealand-born singer, songwriter and producer.",
+      "sector": "Music",
+      "subsector": "Soul / R&B",
+      "initialPrice": "50.00"
+    },
+    {
+      "key": "24",
+      "name": "Arijit Singh",
+      "description": "Indian singer.",
+      "sector": "Music",
+      "subsector": "Playback",
+      "initialPrice": "100.00"
+    },
+    {
+      "key": "25",
+      "name": "Being a hater",
+      "description": "Finding fault as a personality trait.",
+      "sector": "Internet culture",
+      "subsector": "Attitudes",
+      "initialPrice": "12.00"
+    },
+    {
+      "key": "26",
+      "name": "Main character energy",
+      "description": "Treating everyday life as your own story.",
+      "sector": "Internet culture",
+      "subsector": "Identity",
+      "initialPrice": "35.00"
+    },
+    {
+      "key": "27",
+      "name": "Delusion",
+      "description": "Confidence running ahead of evidence.",
+      "sector": "Internet culture",
+      "subsector": "Attitudes",
+      "initialPrice": "18.00"
+    },
+    {
+      "key": "28",
+      "name": "Locking in",
+      "description": "Committing to a period of intense focus.",
+      "sector": "Internet culture",
+      "subsector": "Attention",
+      "initialPrice": "40.00"
+    },
+    {
+      "key": "29",
+      "name": "Brain rot",
+      "description": "Absorption in repetitive online entertainment.",
+      "sector": "Internet culture",
+      "subsector": "Attention",
+      "initialPrice": "15.00"
+    },
+    {
+      "key": "30",
+      "name": "Aura",
+      "description": "Perceived presence, confidence and social appeal.",
+      "sector": "Internet culture",
+      "subsector": "Identity",
+      "initialPrice": "45.00"
+    },
+    {
+      "key": "31",
+      "name": "Nostalgia",
+      "description": "Affection for an idealised past.",
+      "sector": "Internet culture",
+      "subsector": "Attitudes",
+      "initialPrice": "55.00"
+    },
+    {
+      "key": "32",
+      "name": "Wholesomeness",
+      "description": "Warmth, kindness and uncomplicated positivity.",
+      "sector": "Internet culture",
+      "subsector": "Attitudes",
+      "initialPrice": "30.00"
+    },
+    {
+      "key": "33",
+      "name": "Rage bait",
+      "description": "Content designed to provoke engagement.",
+      "sector": "Internet culture",
+      "subsector": "Attention",
+      "initialPrice": "14.00"
+    },
+    {
+      "key": "34",
+      "name": "Irony",
+      "description": "Distance, humour and deliberate ambiguity.",
+      "sector": "Internet culture",
+      "subsector": "Expression",
+      "initialPrice": "25.00"
+    },
+    {
+      "key": "35",
+      "name": "Sincerity",
+      "description": "Expressing things without ironic distance.",
+      "sector": "Internet culture",
+      "subsector": "Expression",
+      "initialPrice": "30.00"
+    },
+    {
+      "key": "36",
+      "name": "The comeback",
+      "description": "The appeal of a return after a setback.",
+      "sector": "Internet culture",
+      "subsector": "Identity",
+      "initialPrice": "35.00"
+    },
+    {
+      "key": "37",
+      "name": "Vibe coding",
+      "description": "Building software through natural-language direction.",
+      "sector": "Technology",
+      "subsector": "Software culture",
+      "initialPrice": "50.00"
+    },
+    {
+      "key": "38",
+      "name": "AI agents",
+      "description": "Software acting towards goals with delegated tasks.",
+      "sector": "Technology",
+      "subsector": "Automation",
+      "initialPrice": "85.00"
+    },
+    {
+      "key": "39",
+      "name": "Open source",
+      "description": "Sharing software for others to inspect and build on.",
+      "sector": "Technology",
+      "subsector": "Software culture",
+      "initialPrice": "60.00"
+    },
+    {
+      "key": "40",
+      "name": "Privacy",
+      "description": "Control over personal information and observation.",
+      "sector": "Technology",
+      "subsector": "Digital autonomy",
+      "initialPrice": "70.00"
+    },
+    {
+      "key": "41",
+      "name": "Human-made",
+      "description": "Preference for work visibly made by people.",
+      "sector": "Technology",
+      "subsector": "Creative technology",
+      "initialPrice": "45.00"
+    },
+    {
+      "key": "42",
+      "name": "Indie hacking",
+      "description": "Small, independently built software businesses.",
+      "sector": "Technology",
+      "subsector": "Software culture",
+      "initialPrice": "40.00"
+    },
+    {
+      "key": "43",
+      "name": "Repairability",
+      "description": "Products people can maintain and repair themselves.",
+      "sector": "Technology",
+      "subsector": "Digital autonomy",
+      "initialPrice": "35.00"
+    },
+    {
+      "key": "44",
+      "name": "The dead internet",
+      "description": "The idea of an online world dominated by automation.",
+      "sector": "Technology",
+      "subsector": "Automation",
+      "initialPrice": "20.00"
+    },
+    {
+      "key": "45",
+      "name": "Third places",
+      "description": "Places to gather outside home and work.",
+      "sector": "Lifestyle",
+      "subsector": "Social life",
+      "initialPrice": "35.00"
+    },
+    {
+      "key": "46",
+      "name": "Touching grass",
+      "description": "Spending time away from screens.",
+      "sector": "Lifestyle",
+      "subsector": "Offline life",
+      "initialPrice": "25.00"
+    },
+    {
+      "key": "47",
+      "name": "Digital detox",
+      "description": "Deliberately reducing digital consumption.",
+      "sector": "Lifestyle",
+      "subsector": "Offline life",
+      "initialPrice": "30.00"
+    },
+    {
+      "key": "48",
+      "name": "Slow mornings",
+      "description": "Unhurried routines and protected personal time.",
+      "sector": "Lifestyle",
+      "subsector": "Offline life",
+      "initialPrice": "25.00"
+    },
+    {
+      "key": "49",
+      "name": "Run clubs",
+      "description": "Exercise organised around a recurring community.",
+      "sector": "Lifestyle",
+      "subsector": "Social life",
+      "initialPrice": "40.00"
+    },
+    {
+      "key": "50",
+      "name": "Work-life balance",
+      "description": "Keeping work from consuming the rest of life.",
+      "sector": "Lifestyle",
+      "subsector": "Work culture",
+      "initialPrice": "60.00"
+    },
+    {
+      "key": "51",
+      "name": "Hustle culture",
+      "description": "Treating constant work as an aspiration.",
+      "sector": "Lifestyle",
+      "subsector": "Work culture",
+      "initialPrice": "45.00"
+    },
+    {
+      "key": "52",
+      "name": "Owning things",
+      "description": "Preference for ownership over recurring subscriptions.",
+      "sector": "Lifestyle",
+      "subsector": "Consumption",
+      "initialPrice": "50.00"
+    },
+    {
+      "key": "53",
+      "name": "Jorts",
+      "description": "Denim shorts as a style identity.",
+      "sector": "Fashion",
+      "subsector": "Streetwear",
+      "initialPrice": "15.00"
+    },
+    {
+      "key": "54",
+      "name": "Thrifting",
+      "description": "Finding and wearing second-hand clothing.",
+      "sector": "Fashion",
+      "subsector": "Consumption",
+      "initialPrice": "35.00"
+    },
+    {
+      "key": "55",
+      "name": "Quiet luxury",
+      "description": "Understated styling and discreet signals of quality.",
+      "sector": "Fashion",
+      "subsector": "Aesthetics",
+      "initialPrice": "90.00"
+    },
+    {
+      "key": "56",
+      "name": "Gorpcore",
+      "description": "Outdoor clothing worn as everyday fashion.",
+      "sector": "Fashion",
+      "subsector": "Streetwear",
+      "initialPrice": "55.00"
+    },
+    {
+      "key": "57",
+      "name": "Football shirts",
+      "description": "Football kits worn beyond playing or watching sport.",
+      "sector": "Fashion",
+      "subsector": "Streetwear",
+      "initialPrice": "45.00"
+    },
+    {
+      "key": "58",
+      "name": "Baggy jeans",
+      "description": "Loose denim silhouettes.",
+      "sector": "Fashion",
+      "subsector": "Streetwear",
+      "initialPrice": "30.00"
+    },
+    {
+      "key": "59",
+      "name": "Maximalism",
+      "description": "Deliberately abundant colour, pattern and detail.",
+      "sector": "Fashion",
+      "subsector": "Aesthetics",
+      "initialPrice": "40.00"
+    },
+    {
+      "key": "60",
+      "name": "Tailoring",
+      "description": "Structured, fitted and formal clothing.",
+      "sector": "Fashion",
+      "subsector": "Aesthetics",
+      "initialPrice": "65.00"
+    }
+  ]
+}

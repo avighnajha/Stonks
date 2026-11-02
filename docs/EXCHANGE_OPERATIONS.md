@@ -2,7 +2,7 @@
 
 ## Upgrade
 
-This section applies only when preserving an older database, including local Docker or Codespaces data. Nothing is currently deployed. For a new simulation with no data to preserve, initialise a fresh database and let the trading service create its schema.
+This section applies only when preserving an older database, including local Docker or Codespaces data. For a new simulation with no data to preserve, initialise a fresh database and let the trading service create its schema.
 
 Back up PostgreSQL and stop **all** old application processes and compensation workers before deploying this version. Trading service owns schema migrations; automatic TypeORM synchronization is disabled in every service. Never run old and new settlement code against the same database.
 
@@ -17,6 +17,26 @@ Prices have two decimal places, quantities four, and settlement cash six. Client
 Supply issuance is an explicit atomic operation. Normal participants cannot credit wallets, mint holdings or invoke settlement. New accounts receive the documented simulation endowment. Cash/asset ledger changes distinguish issuance/endowment from transfers.
 
 Mutation clients must supply an Idempotency-Key, unique per logical command. Retry uncertain responses with the **same** key and identical body; do not create a new key until the outcome is known. Reusing a key with a different request is a conflict. Keys and outcomes remain durable.
+
+## Starter catalogue
+
+[starter-assets.json](../deploy/starter-assets.json) contains the approved 60-person/concept catalogue, starting prices, descriptions and sector/subsector labels. Each asset has 10,000 units and a 0% creator allocation. Prices are simulation denominations, not real-world valuations.
+
+The operator importer uses a dedicated **Stonks Treasury** account with zero starting cash and a password hash that cannot authenticate. Its administrator role is required by engine issuance; it has no generated login credential. The importer creates pending assets, calls the normal atomic issuance engine and assigns research templates. It does not fabricate bids, trades, price history or news.
+
+On the VPS, with the trading service running and the repository updated:
+
+```sh
+docker compose cp deploy/seed_assets.cjs trading_service:/tmp/seed_assets.cjs
+docker compose cp deploy/starter-assets.json trading_service:/tmp/starter-assets.json
+docker compose exec -T trading_service node /tmp/seed_assets.cjs --data /tmp/starter-assets.json
+# After inspecting the dry-run summary:
+docker compose exec -T trading_service node /tmp/seed_assets.cjs --data /tmp/starter-assets.json --apply
+```
+
+Use `sudo` where required by the host. The container supplies its existing database configuration; do not put credentials in these commands. Back up the application database before the initial import. No container rebuild or schema migration is required.
+
+Stable asset IDs and the engine's issuance keys make interrupted imports resumable. Reruns do not mint again, refill an initial order, reset balances or change template versions when classification is unchanged. Conflicting existing identities or approved issuance terms stop the import. Each issuance is atomic; the whole catalogue is a resumable batch. The integration regression imports all 60, reruns, executes a real fill, reruns again and checks conservation and unchanged orders/balances.
 
 ## Deferred work
 

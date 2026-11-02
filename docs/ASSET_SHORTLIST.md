@@ -1,10 +1,10 @@
 # Starter asset candidates
 
-Draft for review, 2 November 2026. No assets have been created or approved from this list.
+All 60 candidates approved for the starter catalogue on 2 November 2026. Import data and initial prices are in [starter-assets.json](../deploy/starter-assets.json).
 
-60 candidates across six proposed sectors: 24 people and 36 concepts. **★** marks the 24 I would favour for a first catalogue. These are editorial picks, not popularity rankings or predictions about the people involved.
+60 assets across six sectors: 24 people and 36 concepts. **★** retains the original 24 suggested favourites; all 60 are included in the import. These are editorial picks, not popularity rankings or predictions about the people involved.
 
-Keep, remove or rename candidates by their numbered IDs. Subsectors are proposed catalogue labels, including broad editorial groupings for music. Prices, supply, images and simulation parameters can be chosen after the names.
+Starting prices are arbitrary simulation denominations from $12 to $150, with 10,000 units per asset and a 0% creator allocation. A password-login-disabled Stonks Treasury account holds the supply and offers it through initial limit sell orders. Images are omitted; the UI uses initials. Subsectors are catalogue labels, including broad editorial groupings for music. Research runs choose their own prices, allocations and simulation parameters.
 
 ## Sports
 
