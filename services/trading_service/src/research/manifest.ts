@@ -29,6 +29,7 @@ export interface Manifest {
     delayMs: number;
     signalNoise: number;
     information?: 'public' | 'valuation' | 'both' | 'none';
+    tradableAssets?: string[];
     parameters: Record<string, unknown>;
   }[];
   events: {
@@ -148,6 +149,7 @@ export function validateManifest(input: unknown): Manifest {
       'delayMs',
       'signalNoise',
       'information',
+      'tradableAssets',
       'parameters',
     ]);
     if (
@@ -161,6 +163,19 @@ export function validateManifest(input: unknown): Manifest {
     number(g.signalNoise, 0, 1);
     units(g.cash, 6, false);
     units(g.inventory, 4, false);
+    if (
+      g.tradableAssets !== undefined &&
+      (!Array.isArray(g.tradableAssets) ||
+        !g.tradableAssets.length ||
+        new Set(g.tradableAssets).size !== g.tradableAssets.length ||
+        g.tradableAssets.some(
+          (label) =>
+            typeof label !== 'string' || !v.assets.some((a) => a.id === label),
+        ))
+    )
+      fail(
+        'Tradable assets must be a non-empty unique subset of experiment asset IDs',
+      );
     if (
       !g.parameters ||
       typeof g.parameters !== 'object' ||
@@ -185,12 +200,18 @@ export function validateManifest(input: unknown): Manifest {
   unique(v.assets);
   if (new Set(v.assets.map((a) => a.name)).size !== v.assets.length)
     fail('Asset names must be unique within a run');
-  const supply = v.groups.reduce(
-    (n, g) => n + units(g.inventory, 4, false) * BigInt(g.count),
-    0n,
-  );
-  if (supply > 999999999999n)
-    fail('Total issued quantity per asset exceeds exchange precision');
+  for (const a of v.assets) {
+    const supply = v.groups.reduce(
+      (n, g) =>
+        n +
+        (g.tradableAssets === undefined || g.tradableAssets.includes(a.id)
+          ? units(g.inventory, 4, false) * BigInt(g.count)
+          : 0n),
+      0n,
+    );
+    if (supply > 999999999999n)
+      fail('Total issued quantity per asset exceeds exchange precision');
+  }
   unique(v.groups);
   for (const e of v.events) {
     object(e, [

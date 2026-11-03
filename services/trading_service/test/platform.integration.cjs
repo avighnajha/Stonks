@@ -289,6 +289,17 @@ test(
           subsectorWeight: 0,
           idiosyncraticWeight: 0,
         },
+        {
+          id: 'b',
+          name: 'B',
+          sector: 'Music',
+          subsector: 'Electronic',
+          price: '100.00',
+          marketWeight: 0,
+          sectorWeight: 0,
+          subsectorWeight: 0,
+          idiosyncraticWeight: 0,
+        },
       ],
       groups: [
         {
@@ -300,6 +311,7 @@ test(
           wakeMs: 1000,
           delayMs: 0,
           signalNoise: 0,
+          tradableAssets: ['b'],
           parameters: {},
         },
       ],
@@ -321,6 +333,17 @@ test(
       'research-key',
     );
     assert.equal(launch.status, 201, JSON.stringify(launch));
+    assert.deepEqual(
+      (
+        await request(
+          `/research/runs/${launch.data.id}`,
+          'GET',
+          undefined,
+          buyer,
+        )
+      ).data.manifest.groups[0].tradableAssets,
+      ['b'],
+    );
     assert.equal(
       (
         await request(
@@ -394,6 +417,13 @@ test(
         JSON.stringify(completed),
       );
       assert.ok(completed.data.result.economicHash);
+      assert.equal(completed.data.result.cohorts.g.initialWealth, 2000);
+      const positions = completed.data.result.report.accounts['g:0'].positions;
+      assert.equal(positions.length, 1);
+      assert.equal(
+        positions[0].assetId,
+        completed.data.result.identities.assets.b,
+      );
     }
   },
 );

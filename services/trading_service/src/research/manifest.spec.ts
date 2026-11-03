@@ -78,3 +78,38 @@ test('rejects inconsistent scope, duplicate identities, precision loss and nonfi
   ])
     expect(() => validateManifest({ ...v, ...change })).toThrow();
 });
+
+test('accepts a group trading subset and preserves omitted scope for legacy runs', () => {
+  const legacy = valid();
+  expect(validateManifest(legacy).groups[0]).not.toHaveProperty(
+    'tradableAssets',
+  );
+  const scoped = {
+    ...legacy,
+    assets: [
+      ...legacy.assets,
+      { ...legacy.assets[0], id: 'b', name: 'Asset B' },
+    ],
+    groups: [{ ...legacy.groups[0], tradableAssets: ['b'] }],
+  };
+  const result = validateManifest(scoped);
+  expect(result.groups[0]['tradableAssets']).toEqual(['b']);
+  scoped.groups[0].tradableAssets.push('a');
+  expect(result.groups[0]['tradableAssets']).toEqual(['b']);
+});
+
+test('rejects empty, duplicate, unknown and malformed group trading scopes', () => {
+  const v = valid();
+  for (const tradableAssets of [
+    [],
+    ['a', 'a'],
+    ['missing'],
+    ['a', 'missing'],
+    'all',
+    null,
+    [1],
+  ])
+    expect(() =>
+      validateManifest({ ...v, groups: [{ ...v.groups[0], tradableAssets }] }),
+    ).toThrow();
+});

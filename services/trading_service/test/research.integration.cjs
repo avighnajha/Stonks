@@ -85,7 +85,14 @@ test('private immutable runs, retry-safe launch, cancellation and stale lease ha
   const e = await service.save(a, {
     title: 'Question',
     hypothesis: 'Test',
-    manifest,
+    manifest: {
+      ...manifest,
+      assets: [
+        ...manifest.assets,
+        { ...manifest.assets[0], id: 'b', name: 'B' },
+      ],
+      groups: [{ ...manifest.groups[0], tradableAssets: ['a'] }],
+    },
   });
   assert.equal((await service.list(b)).length, 0);
   await assert.rejects(
@@ -102,6 +109,10 @@ test('private immutable runs, retry-safe launch, cancellation and stale lease ha
     e.id,
   );
   assert.equal((await service.get(a, r.id)).manifest.seed, 42);
+  assert.deepEqual(
+    (await service.get(a, r.id)).manifest.groups[0].tradableAssets,
+    ['a'],
+  );
   await assert.rejects(service.get(b, r.id));
   await assert.rejects(service.cancel(b, r.id));
   const claims = await Promise.all([service.claim(), service.claim()]);

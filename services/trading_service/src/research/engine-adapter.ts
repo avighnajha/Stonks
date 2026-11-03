@@ -12,6 +12,9 @@ export function stableId(key: string) {
   return `${s.slice(0, 8)}-${s.slice(8, 12)}-4${s.slice(13, 16)}-8${s.slice(17, 20)}-${s.slice(20, 32)}`;
 }
 async function main() {
+  // pg parses timestamp-without-time-zone columns in the Node process timezone.
+  // Controlled runs always interpret these logical timestamps as UTC.
+  process.env.TZ = 'UTC';
   const url = process.env.RUN_DATABASE_URL;
   if (!url) throw new Error('RUN_DATABASE_URL required');
   const db = new DataSource({
@@ -33,6 +36,7 @@ async function main() {
     initialized = false;
   const assetIds = new Map<string, string>(),
     agentIds = new Map<string, string>();
+  const tradingScopes = new Map<string, Set<string>>();
   const engine = new ExchangeService(db.manager, {
     now: () => new Date(Date.UTC(2000, 0, 1) + tick),
     id: () => stableId(`command:${++counter}`),
@@ -85,6 +89,10 @@ async function main() {
               const label = `${g.id}:${i}`,
                 id = stableId('agent:' + label);
               agentIds.set(label, id);
+              const scope = new Set(
+                g.tradableAssets ?? m.assets.map((a) => a.id),
+              );
+              tradingScopes.set(label, scope);
               await em.query(
                 "INSERT INTO users(id,email,username,password_hash) VALUES($1,$2,$2,'disabled')",
                 [id, label],
@@ -98,6 +106,7 @@ async function main() {
                 [id, g.cash],
               );
               for (const a of m.assets) {
+                if (!scope.has(a.id)) continue;
                 await em.query(
                   'INSERT INTO holding(user_id,asset_id,quantity,average_buy_price) VALUES($1,$2,$3,$4)',
                   [id, asset(a.id), g.inventory, a.price],
@@ -121,8 +130,12 @@ async function main() {
       } else {
         if (!initialized) throw new Error('Initialise first');
         if (q.op === 'place') {
-          result = await engine.place(user(q.agent), q.key, {
-            assetId: asset(q.asset),
+          const participant = user(q.agent);
+          const instrument = asset(q.asset);
+          if (!tradingScopes.get(q.agent)?.has(q.asset))
+            throw new Error("Asset is outside this agent's trading universe");
+          result = await engine.place(participant, q.key, {
+            assetId: instrument,
             side: q.side,
             type: q.type,
             price: q.price,

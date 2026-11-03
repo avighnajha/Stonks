@@ -13,6 +13,8 @@ are independent. Strategies live in the separate private repository
 - Independent database and restricted login per run, using the existing exchange engine.
 - Logical milliseconds, deterministic order/trade IDs, factor worlds and delayed observations.
 - Python strategy SDK, test fixtures, decision logs, accounting conservation checks.
+- Per-group trading universes, SDK `context.tradable_assets` and runner/adapter
+  enforcement. Initial inventory is allocated only to each agent's tradable assets.
 - Price/reference charts, final books/fills, cohort marked P&L, spread/missing-book/RMSE
   measurements, run comparison and JSON exports.
 
@@ -21,6 +23,30 @@ The owner implements actual market makers, value/momentum and execution strategi
 There is no public gallery, arbitrary uploaded code execution, margin or derivatives.
 Fees remain zero in this version. Complex execution-risk metrics require appropriate
 strategy contracts; existing measurements state their sample and mark conventions.
+
+## Group trading universes
+
+In Population, choose **All experiment assets** or **Selected assets** for each group.
+All agents in that group receive the same scope and retain independent accounts.
+The manifest stores an optional `groups[].tradableAssets` list of run asset labels,
+not catalogue or exchange UUIDs. Omission means all experiment assets, including
+assets added later to the draft; an explicit list must be non-empty, unique and valid.
+
+Every callback receives `context.tradable_assets`, a typed metadata mapping for the
+allowed labels. `context.assets`, `context.asset_ids`, public books and permitted
+news/valuation observations still cover the whole experiment. The account snapshot
+remains complete. Trading scope does not restrict observation access or require
+continuous quoting. Both runner and adapter reject out-of-scope order placement.
+
+Cash is one shared balance per agent. The inventory amount is allocated per agent
+per tradable asset. Cohort initial wealth and conservation use those allocations.
+Existing manifests with no scope retain their original allocation behaviour. Run
+manifests are immutable; changing a saved draft does not alter launched runs.
+
+Deploy both the exchange and simulation SDK 0.2.0+ worker before exposing scoped
+configuration. Rebuild/recreate `trading_service`, `research_worker` and `frontend`;
+no database migration is needed. Keep running jobs on their original worker until
+finished. User-uploaded strategy execution remains a separate long-term feature.
 
 ## Low-memory local testing
 

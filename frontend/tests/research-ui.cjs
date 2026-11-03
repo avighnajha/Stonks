@@ -111,14 +111,39 @@ const assert = require("node:assert/strict");
     await page
       .getByLabel("Hypothesis", { exact: true })
       .fill("More participation may improve liquidity.");
+    const setup = page.getByRole("navigation", { name: "Experiment setup" });
+    await setup.getByRole("button", { name: "Assets", exact: false }).click();
+    await page
+      .getByRole("button", { name: "Add private asset", exact: true })
+      .click();
+    await setup
+      .getByRole("button", { name: "Population", exact: false })
+      .click();
+    await page
+      .getByLabel("Trading universe for agents", { exact: true })
+      .selectOption("selected");
+    const scope = page.getByRole("group", {
+      name: "Tradable assets for agents",
+      exact: true,
+    });
+    await scope.getByLabel("Asset A (a)", { exact: true }).uncheck();
+    await setup.getByRole("button", { name: "Assets", exact: false }).click();
+    await page.getByLabel("id", { exact: true }).nth(1).fill("b");
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     await page.getByRole("status").filter({ hasText: "Draft saved" }).waitFor();
+    assert.deepEqual(experiments[0].manifest.groups[0].tradableAssets, ["b"]);
 
     await page.getByRole("button", { name: "Queue runs", exact: true }).click();
     await page
       .getByRole("heading", { name: "Run history", exact: true })
       .waitFor();
     assert.equal(runs.length, 3);
+    assert(
+      runs.every(
+        (run) =>
+          JSON.stringify(run.manifest.groups[0].tradableAssets) === '["b"]',
+      ),
+    );
     await page
       .getByRole("button", { name: "Inspect", exact: true })
       .first()
@@ -143,9 +168,44 @@ const assert = require("node:assert/strict");
       () => document.documentElement.scrollWidth > innerWidth + 1,
     );
     assert.equal(overflow, false);
+    await page.getByRole("button", { name: "Overview", exact: true }).click();
+    await page.getByRole("button", { name: "Open draft", exact: true }).click();
+    await setup
+      .getByRole("button", { name: "Population", exact: false })
+      .click();
+    assert.equal(
+      await scope.getByLabel("Asset A2 (b)", { exact: true }).isChecked(),
+      true,
+    );
+    await setup.getByRole("button", { name: "Assets", exact: false }).click();
+    await page
+      .getByRole("button", { name: "Remove asset", exact: true })
+      .nth(1)
+      .click();
+    await page.getByRole("button", { name: "Save draft", exact: true }).click();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Select at least one tradable asset" })
+      .waitFor();
+    assert.deepEqual(experiments[0].manifest.groups[0].tradableAssets, ["b"]);
+    await setup
+      .getByRole("button", { name: "Population", exact: false })
+      .click();
+    await page
+      .getByLabel("Trading universe for agents", { exact: true })
+      .selectOption("all");
+    await page.getByRole("button", { name: "Save draft", exact: true }).click();
+    await page.getByRole("status").filter({ hasText: "Draft saved" }).waitFor();
+    assert.equal(experiments[0].manifest.groups[0].tradableAssets, undefined);
+    assert(
+      runs.every(
+        (run) =>
+          JSON.stringify(run.manifest.groups[0].tradableAssets) === '["b"]',
+      ),
+    );
     assert.deepEqual(errors, []);
     console.log(
-      "UI flow passed: save, repeated seeds, results, comparison, mobile width; no runtime errors",
+      "UI flow passed: scoped groups, asset rename/removal, immutable repeated seeds, all-assets reset, results, comparison and mobile width",
     );
   } finally {
     await browser.close();

@@ -36,6 +36,7 @@ type Group = {
   delayMs: number;
   signalNoise: number;
   information?: "public" | "valuation" | "both" | "none";
+  tradableAssets?: string[];
   parameters: Record<string, unknown>;
 };
 type News = {
@@ -289,6 +290,14 @@ export function Research() {
       throw new Error(
         "Correct invalid strategy JSON before saving or launching",
       );
+    for (const g of draft.groups) {
+      if (
+        g.tradableAssets !== undefined &&
+        (!g.tradableAssets.length ||
+          g.tradableAssets.some((id) => !draft.assets.some((a) => a.id === id)))
+      )
+        throw new Error(`Select at least one tradable asset for group ${g.id}`);
+    }
     const body = { title, hypothesis, manifest: draft };
     const { data } = editing
       ? await api.put(`/research/experiments/${editing}`, body)
@@ -297,10 +306,35 @@ export function Research() {
     return data as Experiment;
   }
   function patchAsset(i: number, key: keyof Asset, value: unknown) {
-    setDraft((d) => ({
-      ...d,
-      assets: d.assets.map((a, j) => (j === i ? { ...a, [key]: value } : a)),
-    }));
+    setDraft((d) => {
+      const previous = d.assets[i].id;
+      return {
+        ...d,
+        assets: d.assets.map((a, j) => (j === i ? { ...a, [key]: value } : a)),
+        ...(key === "id" && typeof value === "string"
+          ? {
+              groups: d.groups.map((g) =>
+                g.tradableAssets === undefined
+                  ? g
+                  : {
+                      ...g,
+                      tradableAssets: g.tradableAssets.map((id) =>
+                        id === previous ? value : id,
+                      ),
+                    },
+              ),
+              events: d.events.map((e) =>
+                e.assetId === previous ? { ...e, assetId: value } : e,
+              ),
+            }
+          : {}),
+      };
+    });
+  }
+  function nextAssetId() {
+    let index = draft.assets.length + 1;
+    while (draft.assets.some((a) => a.id === `a${index}`)) index++;
+    return `a${index}`;
   }
   function patchGroup(i: number, key: keyof Group, value: unknown) {
     setDraft((d) => ({
@@ -625,7 +659,7 @@ export function Research() {
                         assets: [
                           ...draft.assets,
                           {
-                            ...asset(`a${draft.assets.length + 1}`),
+                            ...asset(nextAssetId()),
                             name: a.name,
                             price: String(a.price),
                             sector: a.sector,
@@ -656,10 +690,7 @@ export function Research() {
                   onClick={() =>
                     setDraft({
                       ...draft,
-                      assets: [
-                        ...draft.assets,
-                        asset(`a${draft.assets.length + 1}`),
-                      ],
+                      assets: [...draft.assets, asset(nextAssetId())],
                     })
                   }
                 >
@@ -720,6 +751,16 @@ export function Research() {
                         setDraft({
                           ...draft,
                           assets: draft.assets.filter((_, j) => j !== i),
+                          groups: draft.groups.map((g) =>
+                            g.tradableAssets === undefined
+                              ? g
+                              : {
+                                  ...g,
+                                  tradableAssets: g.tradableAssets.filter(
+                                    (id) => id !== a.id,
+                                  ),
+                                },
+                          ),
                           events: draft.events.filter(
                             (e) => e.assetId !== a.id,
                           ),
@@ -779,9 +820,9 @@ export function Research() {
               <h2 className="text-xl font-semibold">Agent population</h2>
               <p className="text-sm text-muted-foreground">
                 Idle and scripted are infrastructure fixtures. Your Python
-                strategies appear here when installed by the operator. Inventory
-                is allocated per agent per selected asset; adding assets
-                increases total endowed wealth unless you adjust allocations.
+                strategies appear here when installed by the operator. Each
+                agent shares one cash balance across its trading universe and
+                receives starting inventory in each tradable asset.
               </p>
               {draft.groups.map((g, i) => (
                 <div key={i} className="border-t border-border pt-4 space-y-3">
@@ -822,6 +863,65 @@ export function Research() {
                       />
                     </Field>
                   </div>
+                  <Field label="Trading universe">
+                    <select
+                      className={input}
+                      aria-label={`Trading universe for ${g.id}`}
+                      value={
+                        g.tradableAssets === undefined ? "all" : "selected"
+                      }
+                      onChange={(e) =>
+                        patchGroup(
+                          i,
+                          "tradableAssets",
+                          e.target.value === "all"
+                            ? undefined
+                            : draft.assets.map((a) => a.id),
+                        )
+                      }
+                    >
+                      <option value="all">All experiment assets</option>
+                      <option value="selected">Selected assets</option>
+                    </select>
+                  </Field>
+                  {g.tradableAssets !== undefined && (
+                    <fieldset
+                      aria-label={`Tradable assets for ${g.id}`}
+                      className="grid sm:grid-cols-2 gap-2 rounded border p-3"
+                    >
+                      <legend className="px-1 text-sm">Tradable assets</legend>
+                      {draft.assets.map((a) => (
+                        <label
+                          key={a.id}
+                          className="flex items-center gap-2 text-sm min-w-0"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={g.tradableAssets!.includes(a.id)}
+                            onChange={(e) =>
+                              patchGroup(
+                                i,
+                                "tradableAssets",
+                                e.target.checked
+                                  ? [...g.tradableAssets!, a.id]
+                                  : g.tradableAssets!.filter(
+                                      (id) => id !== a.id,
+                                    ),
+                              )
+                            }
+                          />
+                          <span className="break-words">
+                            {a.name} ({a.id})
+                          </span>
+                        </label>
+                      ))}
+                    </fieldset>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Every agent in this group uses this universe. Other books
+                    remain visible. Adding tradable assets increases endowed
+                    inventory unless you adjust shares per asset.
+                  </p>
                   <div className="grid sm:grid-cols-3 gap-3">
                     {(
                       [
@@ -837,7 +937,7 @@ export function Research() {
                         label={
                           {
                             cash: "Cash / agent",
-                            inventory: "Shares / agent / asset",
+                            inventory: "Shares / agent / tradable asset",
                             wakeMs: "Wakeup interval (ms)",
                             delayMs: "Observation delay (ms)",
                             signalNoise: "Signal noise",

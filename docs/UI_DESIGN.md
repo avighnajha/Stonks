@@ -9,6 +9,7 @@ Implemented across the shared exchange and personal research workspace:
 - Portfolio capital summary, positions and order history.
 - Profile balances use the consistent account snapshot and refresh while open and after trading commands. Total invested is the cost basis of current holdings, including inventory reserved for sale; pending buys and market-price changes do not add to it. Failed reads show an unavailable state or a stale-data notice instead of an invented zero.
 - Personal research overview, four setup steps, existing repeated seeds/sweeps, run inspection, comparisons and exports.
+- Population groups select all experiment assets or a specific trading subset. Asset renames update references; deleting the final selected asset requires a new selection before saving. Each group's starting shares apply only to its tradable assets.
 - Operations uses the same shell. Nonfunctional pause/flush placeholders were removed; actual news and approval actions remain.
 
 Chart-heavy workspaces are loaded on demand. The bundle path stays `/_static` to avoid the `/assets` API namespace.

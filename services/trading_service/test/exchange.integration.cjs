@@ -1,4 +1,6 @@
 // Runs the real compiled engine and migrations against an isolated PostgreSQL schema.
+// Interpret raw timestamp-without-time-zone reads using the service's UTC convention.
+process.env.TZ = 'UTC';
 const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
