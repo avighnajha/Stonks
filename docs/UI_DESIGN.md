@@ -7,6 +7,7 @@ Implemented across the shared exchange and personal research workspace:
 - Market search and sorting by traded value, gainers, decliners or name. No invented activity, sectors or sparklines.
 - Timestamped price chart, order book and protected market/limit order entry. Existing command idempotency is preserved.
 - Portfolio capital summary, positions and order history.
+- Profile balances use the consistent account snapshot and refresh while open and after trading commands. Total invested is the cost basis of current holdings, including inventory reserved for sale; pending buys and market-price changes do not add to it. Failed reads show an unavailable state or a stale-data notice instead of an invented zero.
 - Personal research overview, four setup steps, existing repeated seeds/sweeps, run inspection, comparisons and exports.
 - Operations uses the same shell. Nonfunctional pause/flush placeholders were removed; actual news and approval actions remain.
 
@@ -27,6 +28,6 @@ npx playwright install chromium
 npm run test:ui
 ```
 
-`test:ui` starts a local production preview on port 5186 and mocks API responses. It does not submit orders or create research runs on the live exchange. Set `BROWSER_CHANNEL=msedge` to use installed Edge locally; `SCREENSHOT_DIR` optionally saves visual review images. CI installs Chromium and runs both browser scripts.
+`test:ui` starts a local production preview on port 5186 and mocks API responses. It does not submit orders or create research runs on the live exchange. Set `BROWSER_CHANNEL=msedge` to use installed Edge locally; `SCREENSHOT_DIR` optionally saves visual review images. CI installs Chromium and runs the research, market and profile browser regressions. The profile regression first reproduced the missing investment total, then verifies cost basis, reserved units, trade/cancel refresh and failed reads.
 
 Future data features (sector-aware market filters, market sparklines, additional research measurements) should be backed by exchange APIs before appearing in the UI. Public research sharing remains deferred.

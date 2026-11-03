@@ -31,7 +31,7 @@ const server = spawn(
       await new Promise((r) => setTimeout(r, 100));
     }
     if (!ready) throw Error("Preview did not become ready");
-    for (const test of ["research-ui.cjs", "market-ui.cjs"])
+    for (const test of ["research-ui.cjs", "market-ui.cjs", "profile-ui.cjs"])
       await new Promise((resolve, reject) => {
         const child = spawn(process.execPath, [path.join(__dirname, test)], {
           stdio: "inherit",

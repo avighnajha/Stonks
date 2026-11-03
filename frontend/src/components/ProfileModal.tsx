@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,12 @@ import {
 import { DollarSign, Plus, User, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import axios from "@/api/axiosInstance";
+
+type AccountSnapshot = {
+  wallet: { balance: string; frozen_balance: string };
+  positions: { quantity: string; averageBuyPrice: string }[];
+};
 
 interface ProfileModalProps {
   open: boolean;
@@ -39,12 +45,58 @@ export const ProfileModal = ({
   });
   const { toast } = useToast();
   const { user, isAuthenticated, logout } = useAuth();
+  const [account, setAccount] = useState<
+    (AccountSnapshot & { userId: string }) | null
+  >(null);
+  const [accountError, setAccountError] = useState("");
+
+  useEffect(() => {
+    setAccount(null);
+    setAccountError("");
+    if (!open || !user?.id) return;
+    const userId = user.id;
+    let active = true;
+    let requestId = 0;
+    const load = async () => {
+      const request = ++requestId;
+      try {
+        const { data } = await axios.get<AccountSnapshot>("/trade/account");
+        if (active && request === requestId) {
+          setAccount({ ...data, userId });
+          setAccountError("");
+        }
+      } catch {
+        if (active && request === requestId)
+          setAccountError("Account data unavailable.");
+      }
+    };
+    void load();
+    const timer = setInterval(load, 5000);
+    window.addEventListener("portfolio:updated", load);
+    window.addEventListener("focus", load);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      window.removeEventListener("portfolio:updated", load);
+      window.removeEventListener("focus", load);
+    };
+  }, [open, user?.id]);
+
+  const snapshot = account?.userId === user?.id ? account : null;
+  const totalInvested = snapshot?.positions.reduce(
+    (sum, position) =>
+      sum + Number(position.quantity) * Number(position.averageBuyPrice),
+    0,
+  );
+  const money = (value: number) =>
+    `$${value.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 6,
+    })}`;
 
   const userData = {
     name: user?.name || "User",
     email: user?.email || "user@example.com",
-    balance: user?.balance || 0,
-    totalInvested: user?.totalInvested || 0,
   };
 
   const handleIPOSubmit = (e: React.FormEvent) => {
@@ -125,7 +177,7 @@ export const ProfileModal = ({
                   </span>
                 </div>
                 <span className="font-semibold text-success">
-                  ${userData.balance.toLocaleString()}
+                  {snapshot ? money(Number(snapshot.wallet.balance)) : "—"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -136,9 +188,18 @@ export const ProfileModal = ({
                   </span>
                 </div>
                 <span className="font-semibold">
-                  ${userData.totalInvested.toLocaleString()}
+                  {totalInvested !== undefined ? money(totalInvested) : "—"}
                 </span>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Cost of current holdings, including units reserved for sale.
+              </p>
+              {accountError && (
+                <p role="alert" className="text-sm text-destructive">
+                  {accountError}
+                  {snapshot && " Displayed values may be stale."}
+                </p>
+              )}
             </CardContent>
           </Card>
 

@@ -7,7 +7,6 @@ export interface User {
   name: string;
   email: string;
   balance?: number;
-  totalInvested?: number;
   role?: string;
 }
 export interface AuthContextType {
